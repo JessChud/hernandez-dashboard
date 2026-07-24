@@ -33,6 +33,12 @@
   tr:hover { background: #f0f9ff; }
   a { color: #2563eb; text-decoration: none; }
   a:hover { text-decoration: underline; }
+  .table-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .filter-btn { padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;
+                background: #fff; cursor: pointer; font-weight: 600; color: #374151; }
+  .filter-btn:hover { background: #e5e7eb; }
+  .filter-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .filter-status { color: #6b7280; font-size: 13px; }
 
   /* Chart controls */
   .chart-controls { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-bottom: 12px; padding: 12px;
@@ -57,7 +63,7 @@
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-24 22:39:02 UTC</div>
+<div class="meta">Updated: 2026-07-24 22:46:22 UTC</div>
 
 <div class="stats">
   <div class="stat"><div class="stat-num">3</div><div class="stat-label">Running</div></div>
@@ -74,6 +80,11 @@
 
 <!-- TABLE TAB -->
 <div id="tab-table" class="tab-content active">
+<div class="table-controls" aria-label="Run filters">
+  <button id="filter-all" class="filter-btn active" type="button" onclick="setTableFilter('all')">All Runs</button>
+  <button id="filter-f05" class="filter-btn" type="button" onclick="setTableFilter('f05')">f=0.05</button>
+  <span id="table-filter-status" class="filter-status">Showing all runs</span>
+</div>
 <table id="runs">
 <thead><tr>
   <th onclick="sortTable(0)">Name</th>
@@ -10131,6 +10142,71 @@ function isHalfF(repBudget) {
   const numeric = parseFloat(text);
   return numeric === 0.05 || numeric === 5;
 }
+
+let currentTableFilter = 'all';
+let f05RunLinksPromise = null;
+const EMBEDDED_F05_RUN_LINKS = new Set([
+  'https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/nf4uvbdh',
+  'https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/zjmruy7o',
+  'https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/9rbqjbb3',
+  'https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/x62h3u2i',
+  'https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/p7e9byu3',
+]);
+
+function tableRowLinks(row) {
+  const link = row.cells[0]?.querySelector('a');
+  if (!link) return [];
+  return [link.getAttribute('href') || '', link.href || ''].filter(Boolean);
+}
+
+function setFilterButtonState(filter) {
+  document.getElementById('filter-all')?.classList.toggle('active', filter === 'all');
+  document.getElementById('filter-f05')?.classList.toggle('active', filter === 'f05');
+}
+
+function loadF05RunLinks() {
+  if (!f05RunLinksPromise) {
+    f05RunLinksPromise = loadRunCsvRows().then(rows => {
+      const links = new Set(EMBEDDED_F05_RUN_LINKS);
+      rows.filter(row => isHalfF(row['Rep Budget'])).forEach(row => {
+        if (row['W&B Link']) links.add(row['W&B Link']);
+      });
+      return links;
+    });
+  }
+  return f05RunLinksPromise;
+}
+
+async function applyTableFilter() {
+  const table = document.getElementById('runs');
+  const status = document.getElementById('table-filter-status');
+  if (!table || !status) return;
+
+  const rows = Array.from(table.tBodies[0].rows);
+  setFilterButtonState(currentTableFilter);
+
+  if (currentTableFilter === 'all') {
+    rows.forEach(row => { row.hidden = false; });
+    status.textContent = 'Showing all ' + rows.length + ' runs';
+    return;
+  }
+
+  const f05RunLinks = await loadF05RunLinks();
+  let visibleCount = 0;
+  rows.forEach(row => {
+    const isVisible = tableRowLinks(row).some(link => f05RunLinks.has(link));
+    row.hidden = !isVisible;
+    if (isVisible) visibleCount += 1;
+  });
+  status.textContent = 'Showing ' + visibleCount + ' f=0.05 runs';
+}
+
+function setTableFilter(filter) {
+  currentTableFilter = filter;
+  applyTableFilter();
+}
+
+document.addEventListener('DOMContentLoaded', applyTableFilter);
 
 function formatChartGroup(point, repBudget) {
   if (isHalfF(repBudget)) {
