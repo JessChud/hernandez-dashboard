@@ -45,22 +45,31 @@
   .control-group button:hover { background: #e5e7eb; }
   .control-group button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
   .control-group button.primary:hover { background: #1d4ed8; }
+  .section-note { color: #6b7280; font-size: 13px; margin: 0 0 12px 0; }
+  .status-pill { color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+  .status-running { background: #22c55e; }
+  .status-finished { background: #6b7280; }
+  .status-other { background: #f59e0b; }
+  .f05-summary { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 16px 0; }
+  .f05-summary .stat { min-width: 120px; }
+  .table-wrap { max-height: 620px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
 </style>
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-24 20:00:02 UTC</div>
+<div class="meta">Updated: 2026-07-24 20:21:11 UTC</div>
 
 <div class="stats">
-  <div class="stat"><div class="stat-num">2</div><div class="stat-label">Running</div></div>
+  <div class="stat"><div class="stat-num">3</div><div class="stat-label">Running</div></div>
   <div class="stat"><div class="stat-num">574</div><div class="stat-label">Finished</div></div>
-  <div class="stat"><div class="stat-num">281</div><div class="stat-label">Sweeps</div></div>
-  <div class="stat"><div class="stat-num">576</div><div class="stat-label">Total Runs</div></div>
+  <div class="stat"><div class="stat-num">282</div><div class="stat-label">Sweeps</div></div>
+  <div class="stat"><div class="stat-num">577</div><div class="stat-label">Total Runs</div></div>
 </div>
 
 <div class="tabs">
   <div class="tab active" onclick="switchTab('table')">Runs Table</div>
   <div class="tab" onclick="switchTab('chart')">Loss vs Unique Tokens Chart</div>
+  <div class="tab" onclick="switchTab('f05')">0.5x f Tracking</div>
 </div>
 
 <!-- TABLE TAB -->
@@ -9876,6 +9885,23 @@
   <td>-1h 51m (running)</td>
   <td></td>
   <td>2026-07-24T20:08:12Z</td>
+</tr><tr>
+  <td><a href="https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/9rbqjbb3" target="_blank">olive-sweep-1</a></td>
+  <td><span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">running</span></td>
+  <td><a href="https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/7yk3n9jb" target="_blank">7yk3n9jb</a></td>
+  <td>63M</td>
+  <td>1</td>
+  <td>top</td>
+  <td>1x</td>
+  <td>-</td>
+  <td>-</td>
+  <td>-</td>
+  <td>-</td>
+  <td>-</td>
+  <td>-</td>
+  <td>8m (running)</td>
+  <td></td>
+  <td>2026-07-24T20:13:06Z</td>
 </tr></tbody>
 </table>
 </div>
@@ -9916,11 +9942,40 @@
 
 <div id="chart" style="width:100%; height:700px;"></div>
 
-<p style="color:#6b7280; font-size:13px; margin-top:8px;">
-  357 runs plotted (357 finished, 0 running).
+<p id="chart-note" style="color:#6b7280; font-size:13px; margin-top:8px;">
+  Charted runs update from the dashboard data.
   Open markers = running. Use mouse to drag-zoom on the chart, or set axis ranges above.
   Double-click chart to reset zoom.
 </p>
+</div>
+
+<!-- 0.5X F TRACKING TAB -->
+<div id="tab-f05" class="tab-content">
+<p class="section-note">
+  Tracks the new f=0.05 condition, i.e. half of the default 10% repetition budget.
+</p>
+<div id="f05-summary" class="f05-summary"></div>
+<div class="table-wrap">
+<table id="f05-runs">
+<thead><tr>
+  <th>Run</th>
+  <th>State</th>
+  <th>Sweep</th>
+  <th>Model</th>
+  <th>Repeats</th>
+  <th>Direction</th>
+  <th>f</th>
+  <th>OT</th>
+  <th>Eval Loss</th>
+  <th>Train Loss</th>
+  <th>Step</th>
+  <th>Tokens Seen</th>
+  <th>Duration</th>
+  <th>Created</th>
+</tr></thead>
+<tbody></tbody>
+</table>
+</div>
 </div>
 
 <script>
@@ -9933,6 +9988,10 @@ function switchTab(tab) {
   if (tab === 'chart' && !window._chartRendered) {
     renderChart();
     window._chartRendered = true;
+  }
+  if (tab === 'f05' && !window._f05Rendered) {
+    renderF05Tab();
+    window._f05Rendered = true;
   }
 }
 
@@ -9973,21 +10032,202 @@ function humanTokens(n) {
   return n.toFixed(0);
 }
 
-function renderChart() {
+let runCsvRowsPromise = null;
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+
+    if (ch === '"') {
+      if (inQuotes && next === '"') {
+        field += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      row.push(field);
+      field = '';
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      if (ch === '\r' && next === '\n') i++;
+      row.push(field);
+      if (row.some(v => v !== '')) rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += ch;
+    }
+  }
+
+  if (field !== '' || row.length > 0) {
+    row.push(field);
+    if (row.some(v => v !== '')) rows.push(row);
+  }
+
+  const header = rows.shift() || [];
+  return rows.map(values => {
+    const out = {};
+    header.forEach((key, idx) => out[key] = values[idx] || '');
+    return out;
+  });
+}
+
+function loadRunCsvRows() {
+  if (!runCsvRowsPromise) {
+    runCsvRowsPromise = fetch('runs.csv', { cache: 'no-store' })
+      .then(resp => {
+        if (!resp.ok) throw new Error('Could not load runs.csv');
+        return resp.text();
+      })
+      .then(parseCSV)
+      .catch(() => []);
+  }
+  return runCsvRowsPromise;
+}
+
+function isHalfF(repBudget) {
+  const text = String(repBudget || '').trim();
+  if (text === '5%') return true;
+  const numeric = parseFloat(text);
+  return numeric === 0.05 || numeric === 5;
+}
+
+function formatChartGroup(point, repBudget) {
+  if (isHalfF(repBudget)) {
+    return point.model + ' (OT=' + point.ot + ', f=0.05 = 0.5x)';
+  }
+  return point.group || (point.model + ' (OT=' + point.ot + ')');
+}
+
+function escapeHTML(value) {
+  return String(value || '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[ch]));
+}
+
+function statusClass(state) {
+  if (state === 'running') return 'status-running';
+  if (state === 'finished') return 'status-finished';
+  return 'status-other';
+}
+
+async function renderF05Tab() {
+  const rows = (await loadRunCsvRows()).filter(r => isHalfF(r['Rep Budget']));
+  const summary = document.getElementById('f05-summary');
+  const tbody = document.querySelector('#f05-runs tbody');
+
+  if (rows.length === 0) {
+    summary.innerHTML = '<p class="section-note">No f=0.05 runs found in runs.csv yet.</p>';
+    tbody.innerHTML = '';
+    return;
+  }
+
+  const stateCounts = rows.reduce((acc, row) => {
+    const state = row.State || 'unknown';
+    acc[state] = (acc[state] || 0) + 1;
+    return acc;
+  }, {});
+  const modelCounts = [...new Set(rows.map(row => row.Model).filter(Boolean))].sort();
+  summary.innerHTML = [
+    ['Running', stateCounts.running || 0],
+    ['Finished', stateCounts.finished || 0],
+    ['Total 0.5x f Runs', rows.length],
+    ['Models', modelCounts.join(', ')],
+  ].map(([label, value]) => (
+    '<div class="stat"><div class="stat-num">' + escapeHTML(value) + '</div><div class="stat-label">' + escapeHTML(label) + '</div></div>'
+  )).join('');
+
+  const stateRank = { running: 0, queued: 1, pending: 1, finished: 2, failed: 3 };
+  rows.sort((a, b) => {
+    const ar = stateRank[a.State] ?? 9;
+    const br = stateRank[b.State] ?? 9;
+    if (ar !== br) return ar - br;
+    return String(b.Created).localeCompare(String(a.Created));
+  });
+
+  tbody.innerHTML = rows.map(row => {
+    const state = row.State || 'unknown';
+    const runLink = row['W&B Link'] || '#';
+    const sweepLink = row['Sweep ID']
+      ? 'https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/' + row['Sweep ID']
+      : '#';
+    return '<tr>' +
+      '<td><a href="' + escapeHTML(runLink) + '" target="_blank">' + escapeHTML(row.Name) + '</a></td>' +
+      '<td><span class="status-pill ' + statusClass(state) + '">' + escapeHTML(state) + '</span></td>' +
+      '<td><a href="' + escapeHTML(sweepLink) + '" target="_blank">' + escapeHTML(row['Sweep ID']) + '</a></td>' +
+      '<td>' + escapeHTML(row.Model) + '</td>' +
+      '<td>' + escapeHTML(row['Num Repeats']) + '</td>' +
+      '<td>' + escapeHTML(row.Direction) + '</td>' +
+      '<td>0.05 (0.5x)</td>' +
+      '<td>' + escapeHTML(row['OT Multiplier']) + 'x</td>' +
+      '<td>' + escapeHTML(row['Eval Loss'] || '-') + '</td>' +
+      '<td>' + escapeHTML(row['Train Loss (last)'] || '-') + '</td>' +
+      '<td>' + escapeHTML(row['Global Step'] || '-') + '</td>' +
+      '<td>' + escapeHTML(row['Tokens Seen'] || '-') + '</td>' +
+      '<td>' + escapeHTML(row.Duration || '-') + '</td>' +
+      '<td>' + escapeHTML(row.Created || '-') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+async function renderChart() {
+  const csvRows = await loadRunCsvRows();
+  const rowsByUrl = {};
+  csvRows.forEach(row => {
+    if (row['W&B Link']) rowsByUrl[row['W&B Link']] = row;
+  });
+  const hasHalfFInCsv = csvRows.some(row => isHalfF(row['Rep Budget']));
+  const chartPoints = chartData.map(point => {
+    const meta = rowsByUrl[point.url] || {};
+    const repBudget = meta['Rep Budget'] || point.rep_budget || '10%';
+    return {
+      ...point,
+      rep_budget: repBudget,
+      is_half_f: isHalfF(repBudget),
+      group: formatChartGroup(point, repBudget),
+    };
+  }).filter(point => Number.isFinite(point.unique_tokens) && Number.isFinite(point.eval_loss));
+
   // Group by model+OT
   const groups = {};
-  chartData.forEach(p => {
+  chartPoints.forEach(p => {
     if (!groups[p.group]) groups[p.group] = [];
     groups[p.group].push(p);
   });
 
   const traces = [];
   const groupNames = Object.keys(groups).sort();
+  const hasHalfFTrace = groupNames.some(name => name.includes('f=0.05'));
+
+  if (hasHalfFInCsv && !hasHalfFTrace) {
+    traces.push({
+      x: [null],
+      y: [null],
+      mode: 'markers',
+      type: 'scatter',
+      name: 'f=0.05 = 0.5x runs in progress',
+      legendgroup: 'f05-tracking',
+      marker: { color: 'rgba(0,0,0,0)', symbol: 'star', size: 12,
+                 line: { width: 2.5, color: '#111827' } },
+      hoverinfo: 'skip',
+    });
+  }
 
   groupNames.forEach((gname, idx) => {
     const pts = groups[gname];
     const color = COLORS[idx % COLORS.length];
     const symbol = SYMBOLS[idx % SYMBOLS.length];
+    const specialHalfF = pts.some(p => p.is_half_f);
 
     // Finished points
     const fin = pts.filter(p => p.state === 'finished');
@@ -9999,8 +10239,8 @@ function renderChart() {
         type: 'scatter',
         name: gname,
         legendgroup: gname,
-        marker: { color: color, symbol: symbol, size: 10, opacity: 0.6,
-                   line: { width: 1, color: color } },
+        marker: { color: color, symbol: specialHalfF ? 'star' : symbol, size: specialHalfF ? 12 : 10, opacity: 0.6,
+                   line: { width: specialHalfF ? 2 : 1, color: color } },
         text: fin.map(p => p.name + '<br>' + humanTokens(p.unique_tokens) + ' (' + p.num_repeats + 'x)<br>Loss: ' + p.eval_loss.toFixed(4) + '<br>Dir: ' + p.direction),
         hoverinfo: 'text',
         customdata: fin.map(p => p.url),
@@ -10018,7 +10258,7 @@ function renderChart() {
         name: gname + ' (running)',
         legendgroup: gname,
         showlegend: false,
-        marker: { color: 'rgba(0,0,0,0)', symbol: symbol, size: 12,
+        marker: { color: 'rgba(0,0,0,0)', symbol: specialHalfF ? 'star' : symbol, size: specialHalfF ? 14 : 12,
                    line: { width: 2.5, color: color } },
         text: run.map(p => p.name + ' [RUNNING]<br>' + humanTokens(p.unique_tokens) + ' (' + p.num_repeats + 'x)<br>Loss: ' + p.eval_loss.toFixed(4) + '<br>Dir: ' + p.direction),
         hoverinfo: 'text',
@@ -10048,17 +10288,20 @@ function renderChart() {
         name: gname + ' (avg)',
         legendgroup: gname,
         showlegend: false,
-        line: { color: color, width: 2.5 },
-        marker: { color: color, symbol: symbol, size: 10 },
+        line: { color: color, width: specialHalfF ? 3.5 : 2.5, dash: specialHalfF ? 'dash' : 'solid' },
+        marker: { color: color, symbol: specialHalfF ? 'star' : symbol, size: specialHalfF ? 12 : 10 },
         text: avgPts.map(p => gname + '<br>Avg: ' + humanTokens(p.x) + ' (' + p.nr + 'x, n=' + p.n + ')<br>Loss: ' + p.y.toFixed(4)),
         hoverinfo: 'text',
       });
     }
   });
 
+  const finishedCount = chartPoints.filter(point => point.state === 'finished').length;
+  const runningCount = chartPoints.filter(point => point.state === 'running').length;
+
   const layout = {
     title: {
-      text: 'Test Loss vs Size of Repeated Subset<br><span style="font-size:13px;color:#6b7280">Hernandez Replication (' + chartData.length + ' runs: ' + 357 + ' finished, ' + 0 + ' running)</span>',
+      text: 'Test Loss vs Size of Repeated Subset<br><span style="font-size:13px;color:#6b7280">Hernandez Replication (' + chartPoints.length + ' charted runs: ' + finishedCount + ' finished, ' + runningCount + ' running)</span>',
       font: { size: 16 },
     },
     xaxis: {
@@ -10093,6 +10336,10 @@ function renderChart() {
   };
 
   Plotly.newPlot('chart', traces, layout, config);
+  document.getElementById('chart-note').innerHTML =
+    chartPoints.length + ' charted runs (' + finishedCount + ' finished, ' + runningCount + ' running). ' +
+    'Open markers = running. Use mouse to drag-zoom on the chart, or set axis ranges above. ' +
+    'Double-click chart to reset zoom.';
 
   // Click to open W&B run
   document.getElementById('chart').on('plotly_click', function(data) {
