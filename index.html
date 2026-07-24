@@ -46,6 +46,7 @@
   .control-group { display: flex; flex-direction: column; gap: 4px; }
   .control-group label { font-size: 12px; font-weight: 600; color: #374151; }
   .control-group input { width: 100px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px; }
+  .button-row { display: flex; gap: 8px; }
   .control-group button { padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px;
                            background: #fff; cursor: pointer; font-weight: 500; }
   .control-group button:hover { background: #e5e7eb; }
@@ -63,7 +64,7 @@
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-24 22:46:22 UTC</div>
+<div class="meta">Updated: 2026-07-24 22:53:29 UTC</div>
 
 <div class="stats">
   <div class="stat"><div class="stat-num">3</div><div class="stat-label">Running</div></div>
@@ -9980,7 +9981,14 @@
     <button onclick="resetRange()">Reset</button>
   </div>
   <div class="control-group">
-    <label>Filter</label>
+    <label>Runs</label>
+    <div class="button-row">
+      <button id="chart-filter-all" class="primary" onclick="setChartFilter('all')">All Runs</button>
+      <button id="chart-filter-f05" onclick="setChartFilter('f05')">f=0.05</button>
+    </div>
+  </div>
+  <div class="control-group">
+    <label>OT Filter</label>
     <button id="otFilterBtn" onclick="toggleOTFilter()">Show OT=0.25/0.5 Only</button>
   </div>
 </div>
@@ -10208,6 +10216,20 @@ function setTableFilter(filter) {
 
 document.addEventListener('DOMContentLoaded', applyTableFilter);
 
+let currentChartFilter = 'all';
+
+function setChartFilterButtonState(filter) {
+  document.getElementById('chart-filter-all')?.classList.toggle('primary', filter === 'all');
+  document.getElementById('chart-filter-f05')?.classList.toggle('primary', filter === 'f05');
+}
+
+function setChartFilter(filter) {
+  currentChartFilter = filter;
+  otFilterActive = false;
+  renderChart();
+  window._chartRendered = true;
+}
+
 function formatChartGroup(point, repBudget) {
   if (isHalfF(repBudget)) {
     return point.model + ' (OT=' + point.ot + ', f=0.05)';
@@ -10291,13 +10313,16 @@ async function renderF05Tab() {
 }
 
 async function renderChart() {
+  setChartFilterButtonState(currentChartFilter);
+  updateOTFilterButton();
   const csvRows = await loadRunCsvRows();
   const rowsByUrl = {};
   csvRows.forEach(row => {
     if (row['W&B Link']) rowsByUrl[row['W&B Link']] = row;
   });
-  const hasHalfFInCsv = csvRows.some(row => isHalfF(row['Rep Budget']));
-  const chartPoints = chartData.map(point => {
+  const f05Rows = csvRows.filter(row => isHalfF(row['Rep Budget']));
+  const hasHalfFInCsv = f05Rows.length > 0;
+  const allChartPoints = chartData.map(point => {
     const meta = rowsByUrl[point.url] || {};
     const repBudget = meta['Rep Budget'] || point.rep_budget || '10%';
     return {
@@ -10307,6 +10332,9 @@ async function renderChart() {
       group: formatChartGroup(point, repBudget),
     };
   }).filter(point => Number.isFinite(point.unique_tokens) && Number.isFinite(point.eval_loss));
+  const chartPoints = currentChartFilter === 'f05'
+    ? allChartPoints.filter(point => point.is_half_f)
+    : allChartPoints;
 
   // Group by model+OT
   const groups = {};
@@ -10408,10 +10436,12 @@ async function renderChart() {
 
   const finishedCount = chartPoints.filter(point => point.state === 'finished').length;
   const runningCount = chartPoints.filter(point => point.state === 'running').length;
+  const filterLabel = currentChartFilter === 'f05' ? 'f=0.05' : 'All runs';
+  const missingF05Coordinates = currentChartFilter === 'f05' && f05Rows.length > 0 && chartPoints.length === 0;
 
   const layout = {
     title: {
-      text: 'Test Loss vs Size of Repeated Subset<br><span style="font-size:13px;color:#6b7280">Hernandez Replication (' + chartPoints.length + ' charted runs: ' + finishedCount + ' finished, ' + runningCount + ' running)</span>',
+      text: 'Test Loss vs Size of Repeated Subset<br><span style="font-size:13px;color:#6b7280">Hernandez Replication - ' + filterLabel + ' (' + chartPoints.length + ' charted runs: ' + finishedCount + ' finished, ' + runningCount + ' running)</span>',
       font: { size: 16 },
     },
     xaxis: {
@@ -10436,6 +10466,18 @@ async function renderChart() {
     paper_bgcolor: '#fff',
     margin: { t: 80, b: 60, l: 60, r: 20 },
     dragmode: 'zoom',
+    annotations: missingF05Coordinates ? [{
+      xref: 'paper',
+      yref: 'paper',
+      x: 0.5,
+      y: 0.5,
+      text: 'f=0.05 runs are tracked, but do not have final chart coordinates yet.',
+      showarrow: false,
+      font: { size: 14, color: '#374151' },
+      bgcolor: 'rgba(255,255,255,0.9)',
+      bordercolor: '#e5e7eb',
+      borderpad: 8,
+    }] : [],
   };
 
   const config = {
@@ -10446,8 +10488,11 @@ async function renderChart() {
   };
 
   Plotly.newPlot('chart', traces, layout, config);
+  const notePrefix = currentChartFilter === 'f05'
+    ? f05Rows.length + ' f=0.05 rows tracked; ' + chartPoints.length + ' currently have chart coordinates. '
+    : chartPoints.length + ' charted runs (' + finishedCount + ' finished, ' + runningCount + ' running). ';
   document.getElementById('chart-note').innerHTML =
-    chartPoints.length + ' charted runs (' + finishedCount + ' finished, ' + runningCount + ' running). ' +
+    notePrefix +
     'Open markers = running. Use mouse to drag-zoom on the chart, or set axis ranges above. ' +
     'Double-click chart to reset zoom.';
 
@@ -10481,15 +10526,25 @@ function resetRange() {
 }
 
 let otFilterActive = false;
-function toggleOTFilter() {
+function updateOTFilterButton() {
   const btn = document.getElementById('otFilterBtn');
-  const chartDiv = document.getElementById('chart');
-  const nTraces = chartDiv.data.length;
-  otFilterActive = !otFilterActive;
-
+  if (!btn) return;
   if (otFilterActive) {
     btn.textContent = 'Show All OT';
     btn.classList.add('primary');
+  } else {
+    btn.textContent = 'Show OT=0.25/0.5 Only';
+    btn.classList.remove('primary');
+  }
+}
+
+function toggleOTFilter() {
+  const chartDiv = document.getElementById('chart');
+  otFilterActive = !otFilterActive;
+  updateOTFilterButton();
+
+  if (otFilterActive) {
+    const nTraces = chartDiv.data.length;
     const visibility = [];
     for (let i = 0; i < nTraces; i++) {
       const lg = chartDiv.data[i].legendgroup || chartDiv.data[i].name || '';
@@ -10498,8 +10553,7 @@ function toggleOTFilter() {
     }
     Plotly.restyle('chart', { visible: visibility });
   } else {
-    btn.textContent = 'Show OT=0.25/0.5 Only';
-    btn.classList.remove('primary');
+    const nTraces = chartDiv.data.length;
     const visibility = new Array(nTraces).fill(true);
     Plotly.restyle('chart', { visible: visibility });
   }
