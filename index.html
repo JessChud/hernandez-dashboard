@@ -64,13 +64,13 @@
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-24 23:55:35 UTC</div>
+<div class="meta">Updated: 2026-07-25 00:56:05 UTC</div>
 
 <div class="stats">
   <div class="stat"><div class="stat-num">3</div><div class="stat-label">Running</div></div>
   <div class="stat"><div class="stat-num">575</div><div class="stat-label">Finished</div></div>
-  <div class="stat"><div class="stat-num">286</div><div class="stat-label">Sweeps</div></div>
-  <div class="stat"><div class="stat-num">581</div><div class="stat-label">Total Runs</div></div>
+  <div class="stat"><div class="stat-num">300</div><div class="stat-label">Sweeps</div></div>
+  <div class="stat"><div class="stat-num">582</div><div class="stat-label">Total Runs</div></div>
 </div>
 
 <div class="tabs">
@@ -9872,7 +9872,7 @@
   <td>top</td>
   <td>1x</td>
   <td>4.0602</td>
-  <td>-</td>
+  <td>4.0630</td>
   <td>2025</td>
   <td>1.000</td>
   <td>1.26B</td>
@@ -9889,12 +9889,12 @@
   <td>top</td>
   <td>1x</td>
   <td>-</td>
-  <td>10.6342</td>
-  <td>113</td>
-  <td>0.050</td>
-  <td>30.5M</td>
-  <td>115089</td>
-  <td>SK1 GPU 5 step 113/2456 ETA ~1h22m</td>
+  <td>4.8641</td>
+  <td>1821</td>
+  <td>0.740</td>
+  <td>504.7M</td>
+  <td>130056</td>
+  <td>SK1 GPU 5 step 1821/2456 ETA ~22m</td>
   <td></td>
   <td>2026-07-24T23:47:44Z</td>
 </tr><tr>
@@ -9906,17 +9906,17 @@
   <td>top</td>
   <td>1x</td>
   <td>-</td>
-  <td>10.6385</td>
-  <td>114</td>
-  <td>0.050</td>
-  <td>30.2M</td>
-  <td>114078</td>
-  <td>SK1 GPU 6 step 114/2468 ETA ~1h22m</td>
+  <td>4.6874</td>
+  <td>1809</td>
+  <td>0.730</td>
+  <td>497.7M</td>
+  <td>128794</td>
+  <td>SK1 GPU 6 step 1809/2468 ETA ~23m</td>
   <td></td>
   <td>2026-07-24T23:47:47Z</td>
 </tr><tr>
   <td><a href="https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/wj2kpwfj" target="_blank">63M-finaleval-clean-nr1</a></td>
-  <td><span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">running</span></td>
+  <td><span style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">failed</span></td>
   <td><a href="https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/uss60kb2" target="_blank">uss60kb2</a></td>
   <td>63M</td>
   <td>1</td>
@@ -9928,9 +9928,26 @@
   <td>-</td>
   <td>-</td>
   <td>-</td>
-  <td>SK2 GPU 3 staging parquet cache before training</td>
-  <td></td>
+  <td>failed before training; final eval captured in 7yk3n9jb/9rbqjbb3</td>
+  <td>retried automatically as nr=13</td>
   <td>2026-07-24T23:48:18Z</td>
+</tr><tr>
+  <td><a href="https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/n6gm88pg" target="_blank">63M-finaleval-clean-nr13</a></td>
+  <td><span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">running</span></td>
+  <td><a href="https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/uss60kb2" target="_blank">uss60kb2</a></td>
+  <td>63M</td>
+  <td>13</td>
+  <td>top</td>
+  <td>1x</td>
+  <td>-</td>
+  <td>5.5537</td>
+  <td>577</td>
+  <td>0.160</td>
+  <td>202.4M</td>
+  <td>195558</td>
+  <td>SK2 GPU 3 step 577/3566 ETA ~1h27m</td>
+  <td></td>
+  <td>2026-07-24T23:58:34Z</td>
 </tr><tr>
   <td><a href="https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/x62h3u2i" target="_blank">queued-93M-after-63M</a></td>
   <td><span style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">pending</span></td>
@@ -10192,6 +10209,7 @@ const EMBEDDED_F05_RUN_LINKS = new Set([
   'https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/ego3swvl',
   'https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/44448nsz',
   'https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/wj2kpwfj',
+  'https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/n6gm88pg',
   'https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/x62h3u2i',
   'https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/llgl3dqe',
   'https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/z6ef1x8h',
