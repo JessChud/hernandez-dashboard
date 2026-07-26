@@ -11088,6 +11088,13 @@ function isHalfF(repBudget) {
   return numeric === 0.05 || numeric === 5;
 }
 
+function isCleanF05Row(row) {
+  const state = String(row.State || "").trim().toLowerCase();
+  const finished = String(row.Finished || "").trim().toLowerCase();
+  return (state === "finished" || state === "running") &&
+    !finished.includes("failed") && !finished.includes("crashed");
+}
+
 let currentTableFilter = 'all';
 let f05RunLinksPromise = null;
 const EMBEDDED_F05_RUN_LINKS = new Set([
@@ -11117,7 +11124,7 @@ function loadF05RunLinks() {
   if (!f05RunLinksPromise) {
     f05RunLinksPromise = loadRunCsvRows().then(rows => {
       const links = new Set(EMBEDDED_F05_RUN_LINKS);
-      rows.filter(row => isHalfF(row['Rep Budget'])).forEach(row => {
+      rows.filter(row => isHalfF(row['Rep Budget']) && isCleanF05Row(row)).forEach(row => {
         if (row['W&B Link']) links.add(row['W&B Link']);
       });
       return links;
@@ -11195,7 +11202,7 @@ function statusClass(state) {
 }
 
 async function renderF05Tab() {
-  const rows = (await loadRunCsvRows()).filter(r => isHalfF(r['Rep Budget']));
+  const rows = (await loadRunCsvRows()).filter(r => isHalfF(r['Rep Budget']) && isCleanF05Row(r));
   const summary = document.getElementById('f05-summary');
   const tbody = document.querySelector('#f05-runs tbody');
 
@@ -11261,7 +11268,7 @@ async function renderChart() {
   csvRows.forEach(row => {
     if (row['W&B Link']) rowsByUrl[row['W&B Link']] = row;
   });
-  const f05Rows = csvRows.filter(row => isHalfF(row['Rep Budget']));
+  const f05Rows = csvRows.filter(row => isHalfF(row['Rep Budget']) && isCleanF05Row(row));
   const hasHalfFInCsv = f05Rows.length > 0;
   const embeddedChartUrls = new Set(chartData.map(point => point.url));
   const f05ChartPoints = f05Rows
