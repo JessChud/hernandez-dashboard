@@ -64,7 +64,7 @@
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-26 18:45:31 UTC</div>
+<div class="meta">Updated: 2026-07-26 19:50:37 UTC</div>
 
 <div class="stats">
   <div class="stat"><div class="stat-num">3</div><div class="stat-label">Running</div></div>
@@ -10280,12 +10280,12 @@
   <td>top</td>
   <td>1x</td>
   <td>-</td>
-  <td>3.6974</td>
-  <td>3775</td>
-  <td>0.766</td>
-  <td>1.42B</td>
-  <td>99543</td>
-  <td>4h 7m</td>
+  <td>3.6799</td>
+  <td>4800</td>
+  <td>0.973</td>
+  <td>1.81B</td>
+  <td>99525</td>
+  <td>5h 12m</td>
   <td></td>
   <td>2026-07-26T14:36:45Z</td>
 </tr><tr>
@@ -10297,12 +10297,12 @@
   <td>top</td>
   <td>1x</td>
   <td>-</td>
-  <td>3.8917</td>
-  <td>1675</td>
-  <td>0.220</td>
-  <td>673.9M</td>
-  <td>138173</td>
-  <td>1h 24m</td>
+  <td>3.6242</td>
+  <td>2450</td>
+  <td>0.322</td>
+  <td>986.8M</td>
+  <td>110648</td>
+  <td>2h 31m</td>
   <td></td>
   <td>2026-07-26T17:18:17Z</td>
 </tr><tr>
@@ -10314,12 +10314,12 @@
   <td>top</td>
   <td>1x</td>
   <td>-</td>
-  <td>5.1563</td>
-  <td>725</td>
-  <td>0.147</td>
-  <td>274.0M</td>
-  <td>99424</td>
-  <td>49m</td>
+  <td>3.9866</td>
+  <td>1750</td>
+  <td>0.355</td>
+  <td>660.7M</td>
+  <td>99518</td>
+  <td>1h 54m</td>
   <td></td>
   <td>2026-07-26T17:55:11Z</td>
 </tr><tr>
@@ -10559,6 +10559,14 @@ function isHalfF(repBudget) {
   return numeric === 0.05 || numeric === 5;
 }
 
+const F05_CHART_OVERLAY_SWEEP_IDS = new Set([
+  'l5t27lu9',
+]);
+
+function isF05ChartOverlay(row) {
+  return F05_CHART_OVERLAY_SWEEP_IDS.has(String(row?.['Sweep ID'] || ''));
+}
+
 let currentTableFilter = 'all';
 let f05RunLinksPromise = null;
 const EMBEDDED_F05_RUN_LINKS = new Set([
@@ -10660,7 +10668,10 @@ function setChartFilter(filter) {
   window._chartRendered = true;
 }
 
-function formatChartGroup(point, repBudget) {
+function formatChartGroup(point, repBudget, meta = {}) {
+  if (isF05ChartOverlay(meta)) {
+    return point.model + ' (OT=' + point.ot + ', f=0.1 seed overlay)';
+  }
   if (isHalfF(repBudget)) {
     return point.model + ' (OT=' + point.ot + ', f=0.05)';
   }
@@ -10750,7 +10761,7 @@ async function renderChart() {
   csvRows.forEach(row => {
     if (row['W&B Link']) rowsByUrl[row['W&B Link']] = row;
   });
-  const f05Rows = csvRows.filter(row => isHalfF(row['Rep Budget']));
+  const f05Rows = csvRows.filter(row => isHalfF(row['Rep Budget']) || isF05ChartOverlay(row));
   const hasHalfFInCsv = f05Rows.length > 0;
   const embeddedChartUrls = new Set(chartData.map(point => point.url));
   const f05ChartPoints = f05Rows
@@ -10771,22 +10782,26 @@ async function renderChart() {
         tokens_seen_hr: Number.isFinite(tokensSeen) ? humanTokens(tokensSeen) : '-',
         url: row['W&B Link'],
         rep_budget: row['Rep Budget'],
+        chart_overlay: isF05ChartOverlay(row),
       };
     })
     .filter(point => Number.isFinite(point.unique_tokens) && Number.isFinite(point.eval_loss));
   const allChartPoints = chartData.map(point => {
     const meta = rowsByUrl[point.url] || {};
     const repBudget = meta['Rep Budget'] || point.rep_budget || '10%';
+    const chartRepBudget = isF05ChartOverlay(meta) ? '5%' : repBudget;
     return {
       ...point,
       rep_budget: repBudget,
-      is_half_f: isHalfF(repBudget),
-      group: formatChartGroup(point, repBudget),
+      is_half_f: isHalfF(chartRepBudget),
+      group: formatChartGroup(point, chartRepBudget, meta),
     };
   }).concat(f05ChartPoints.map(point => ({
     ...point,
     is_half_f: true,
-    group: formatChartGroup(point, point.rep_budget),
+    group: point.chart_overlay
+      ? point.model + ' (OT=' + point.ot + ', f=0.1 seed overlay)'
+      : formatChartGroup(point, point.rep_budget),
   }))).filter(point => Number.isFinite(point.unique_tokens) && Number.isFinite(point.eval_loss));
   const chartPoints = currentChartFilter === 'f05'
     ? allChartPoints.filter(point => point.is_half_f)
