@@ -684,4 +684,3 @@ efficient-sweep-1,crashed,dorrqp2u,"34M nr=[1,13,193,2682,10000]",34M,non-repeat
 silvery-sweep-1,crashed,s5di510l,153M nr=[80],153M,repeated,80,5%,top,1,,,,,,,,,,0h 44m ago,,2026-07-27T08:15:26Z,https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/vmwv4ogq
 misunderstood-sweep-1,running,d9fccpxg,153M nr=[80],153M,repeated,80,5%,top,1,,,,,,,,,,0h 27m (running),,2026-07-27T08:32:23Z,https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/54zqq0pf
 worthy-sweep-1,crashed,9pvs86ad,153M nr=[3],153M,repeated,3,5%,top,1,,,,,,,,,,0h 21m ago,,2026-07-27T08:38:38Z,https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/8xe721pa
-smart-sweep-1,running,h1m66v5b,-,153M,repeated,3,5%,top,1,,,,,,,,,,-1h 58m (running),,2026-07-27T09:01:56Z,https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/43nsonh7
