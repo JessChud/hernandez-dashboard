@@ -64,7 +64,7 @@
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-27 09:25:02 UTC <span style="color:#9ca3af">| artifact 20260727092502UTC; CSV cache-busted</span></div>
+<div class="meta">Updated: 2026-07-27 09:48:27 UTC <span style="color:#9ca3af">| artifact 20260727094827UTC; CSV cache-busted; f=0.05 source-of-truth filter patched</span></div>
 
 <div class="stats">
   <div class="stat"><div class="stat-num">3</div><div class="stat-label">Running</div></div>
@@ -11913,7 +11913,7 @@ function humanTokens(n) {
   return n.toFixed(0);
 }
 
-const DASHBOARD_BUILD_VERSION = "20260727092502UTC";
+const DASHBOARD_BUILD_VERSION = "20260727094827UTC";
 const RUNS_CSV_URL = 'runs.csv?v=' + encodeURIComponent(DASHBOARD_BUILD_VERSION);
 
 let runCsvRowsPromise = null;
@@ -11988,6 +11988,11 @@ function isCleanFinishedChartRow(row) {
   return state === 'finished' && !finished.includes('failed') && !finished.includes('crashed');
 }
 
+function isActiveOrCleanFinishedF05Row(row) {
+  const state = String(row?.State || row?.state || '').trim().toLowerCase();
+  return state === 'running' || isCleanFinishedChartRow(row);
+}
+
 const F05_CHART_OVERLAY_SWEEP_IDS = new Set([
   "l5t27lu9",
   "ow41l3vl",
@@ -12028,7 +12033,7 @@ function isRetiredF05Row(row) {
 }
 
 function isF05TrackingRow(row) {
-  return !isRetiredF05Row(row) && (isHalfF(row?.['Rep Budget']) || isF05ChartOverlay(row));
+  return !isRetiredF05Row(row) && (isHalfF(row?.['Rep Budget']) || isF05ChartOverlay(row)) && isActiveOrCleanFinishedF05Row(row);
 }
 
 let currentTableFilter = 'all';
