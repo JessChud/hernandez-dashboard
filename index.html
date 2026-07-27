@@ -64,7 +64,7 @@
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-27 07:50:03 UTC <span style="color:#9ca3af">| artifact 20260727075003UTC; CSV cache-busted</span></div>
+<div class="meta">Updated: 2026-07-27 08:00:40 UTC <span style="color:#9ca3af">| artifact 20260727080040UTC; CSV cache-busted</span></div>
 
 <div class="stats">
   <div class="stat"><div class="stat-num">3</div><div class="stat-label">Running</div></div>
@@ -11845,7 +11845,7 @@ function humanTokens(n) {
   return n.toFixed(0);
 }
 
-const DASHBOARD_BUILD_VERSION = "20260727075003UTC";
+const DASHBOARD_BUILD_VERSION = "20260727080040UTC";
 const RUNS_CSV_URL = 'runs.csv?v=' + encodeURIComponent(DASHBOARD_BUILD_VERSION);
 
 let runCsvRowsPromise = null;
@@ -11928,12 +11928,27 @@ const F05_CHART_OVERLAY_SWEEP_IDS = new Set([
   "sp3kcrgf",
 ]);
 
+const F05_RETIRED_RUN_IDS = new Set([
+  "2l1cz4j4",
+  "hjmk8ykq",
+  "lc0zv9gs",
+]);
+
 function isF05ChartOverlay(row) {
   return F05_CHART_OVERLAY_SWEEP_IDS.has(String(row?.['Sweep ID'] || ''));
 }
 
+function runIdFromRow(row) {
+  const link = String(row?.['W&B Link'] || '');
+  return link.split('/').filter(Boolean).pop() || '';
+}
+
+function isRetiredF05Row(row) {
+  return F05_RETIRED_RUN_IDS.has(runIdFromRow(row));
+}
+
 function isF05TrackingRow(row) {
-  return isHalfF(row?.['Rep Budget']) || isF05ChartOverlay(row);
+  return !isRetiredF05Row(row) && (isHalfF(row?.['Rep Budget']) || isF05ChartOverlay(row));
 }
 
 let currentTableFilter = 'all';
@@ -12139,7 +12154,7 @@ async function renderChart(targetId = 'chart', noteId = 'chart-note', filterOver
   csvRows.forEach(row => {
     if (row['W&B Link']) rowsByUrl[row['W&B Link']] = row;
   });
-  const trackedF05Rows = csvRows.filter(row => isHalfF(row['Rep Budget']) || isF05ChartOverlay(row));
+  const trackedF05Rows = csvRows.filter(isF05TrackingRow);
   const f05Rows = trackedF05Rows.filter(isCleanFinishedChartRow);
   const hasHalfFInCsv = trackedF05Rows.length > 0;
   const embeddedChartUrls = new Set(chartData.map(point => point.url));
