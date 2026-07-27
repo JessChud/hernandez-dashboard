@@ -1,4 +1,5 @@
 Name,State,Sweep ID,Sweep Label,Model,Repeated,Num Repeats,Rep Budget,Direction,OT Multiplier,Eval Loss,Train Loss (last),Train Loss (avg),Global Step,Epoch,Tokens Seen,Unique Tokens,Train Tok/s,Learning Rate,Duration,Finished,Created,W&B Link
+stellar-sweep-1,running,4xs6m4l9,-,63M,repeated,750,5%,top,1,,,,,,,,,,0h 0m (running),,2026-07-27T06:31:04Z,https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/2l1cz4j4
 ethereal-sweep-1,failed,fj055bp0,-,63M,repeated,750,5%,top,1,,,,,,,,,,2h 22m ago,,2026-07-27T03:57:31Z,https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/xbqddwpw
 fancy-sweep-1,running,r6ax1uaj,-,153M,repeated,3,5%,top,1,,11.56531494140625,,50,0.006575864931734302,20026606,333776.76666666666,2808.449,3.277146945693345e-05,2h 28m (running),,2026-07-27T03:51:33Z,https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/tkc5urqo
 laced-sweep-1,crashed,8oelbniv,-,63M,repeated,1500,5%,top,1,,,,,,,,,,2h 44m ago,,2026-07-27T03:35:52Z,https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/zfie5gk4
