@@ -11960,8 +11960,16 @@ function runIdFromRow(row) {
   return link.split('/').filter(Boolean).pop() || '';
 }
 
+function runIdFromUrl(url) {
+  return String(url || '').split('/').filter(Boolean).pop() || '';
+}
+
+function isRetiredF05RunId(runId) {
+  return F05_RETIRED_RUN_IDS.has(String(runId || ''));
+}
+
 function isRetiredF05Row(row) {
-  return F05_RETIRED_RUN_IDS.has(runIdFromRow(row));
+  return isRetiredF05RunId(runIdFromRow(row));
 }
 
 function isF05TrackingRow(row) {
@@ -12207,6 +12215,7 @@ async function renderChart(targetId = 'chart', noteId = 'chart-note', filterOver
       rep_budget: repBudget,
       is_half_f: isHalfF(chartRepBudget),
       is_clean_finished: hasMeta ? isCleanFinishedChartRow(meta) : point.state === 'finished',
+      is_retired_f05: isRetiredF05RunId(runIdFromUrl(point.url)),
       group: formatChartGroup(point, chartRepBudget, meta),
     };
   }).concat(f05ChartPoints.map(point => ({
@@ -12218,6 +12227,7 @@ async function renderChart(targetId = 'chart', noteId = 'chart-note', filterOver
       : formatChartGroup(point, point.rep_budget),
   }))).filter(point => Number.isFinite(point.unique_tokens) && Number.isFinite(point.eval_loss));
   const chartPoints = allChartPoints.filter(point => {
+    if (point.is_retired_f05) return false;
     if (point.is_half_f && !point.is_clean_finished) return false;
     return activeChartFilter === 'f05' ? point.is_half_f : true;
   });
