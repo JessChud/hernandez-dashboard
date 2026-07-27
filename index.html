@@ -12099,6 +12099,12 @@ function switchTab(tab) {
   }
 }
 
+function initialDashboardTab() {
+  const params = new URLSearchParams(window.location.search);
+  const requested = (params.get('tab') || window.location.hash.slice(1) || '').toLowerCase();
+  return ['chart', 'f05'].includes(requested) ? requested : 'table';
+}
+
 // --- Table sorting ---
 let sortDir = {};
 function sortTable(col) {
@@ -12351,7 +12357,10 @@ function setTableFilter(filter) {
   applyTableFilter();
 }
 
-document.addEventListener('DOMContentLoaded', applyTableFilter);
+document.addEventListener('DOMContentLoaded', () => {
+  applyTableFilter();
+  switchTab(initialDashboardTab());
+});
 
 let currentChartFilter = 'all';
 
