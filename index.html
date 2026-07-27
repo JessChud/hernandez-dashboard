@@ -11488,6 +11488,10 @@
 <p class="section-note">
   Tracks the new f=0.05 condition, i.e. half of the default 10% repetition budget.
 </p>
+<div id="f05-chart" style="width:100%; height:620px;"></div>
+<p id="f05-chart-note" style="color:#6b7280; font-size:13px; margin-top:8px;">
+  f=0.05 charted runs update from the same dashboard data as the main chart.
+</p>
 <div id="f05-summary" class="f05-summary"></div>
 <div class="table-wrap">
 <table id="f05-runs">
@@ -11525,6 +11529,7 @@ function switchTab(tab) {
   }
   if (tab === 'f05' && !window._f05Rendered) {
     renderF05Tab();
+    renderChart('f05-chart', 'f05-chart-note', 'f05');
     window._f05Rendered = true;
   }
 }
@@ -11830,9 +11835,12 @@ async function renderF05Tab() {
   }).join('');
 }
 
-async function renderChart() {
-  setChartFilterButtonState(currentChartFilter);
-  updateOTFilterButton();
+async function renderChart(targetId = 'chart', noteId = 'chart-note', filterOverride = null) {
+  const activeChartFilter = filterOverride || currentChartFilter;
+  if (!filterOverride) {
+    setChartFilterButtonState(currentChartFilter);
+    updateOTFilterButton();
+  }
   const csvRows = await loadRunCsvRows();
   const rowsByUrl = {};
   csvRows.forEach(row => {
@@ -11880,7 +11888,7 @@ async function renderChart() {
       ? point.model + ' (OT=' + point.ot + ', f=0.1 seed overlay)'
       : formatChartGroup(point, point.rep_budget),
   }))).filter(point => Number.isFinite(point.unique_tokens) && Number.isFinite(point.eval_loss));
-  const chartPoints = currentChartFilter === 'f05'
+  const chartPoints = activeChartFilter === 'f05'
     ? allChartPoints.filter(point => point.is_half_f)
     : allChartPoints;
 
@@ -11984,8 +11992,8 @@ async function renderChart() {
 
   const finishedCount = chartPoints.filter(point => point.state === 'finished').length;
   const runningCount = chartPoints.filter(point => point.state === 'running').length;
-  const filterLabel = currentChartFilter === 'f05' ? 'f=0.05' : 'All runs';
-  const missingF05Coordinates = currentChartFilter === 'f05' && f05Rows.length > 0 && chartPoints.length === 0;
+  const filterLabel = activeChartFilter === 'f05' ? 'f=0.05' : 'All runs';
+  const missingF05Coordinates = activeChartFilter === 'f05' && f05Rows.length > 0 && chartPoints.length === 0;
 
   const layout = {
     title: {
@@ -12035,17 +12043,20 @@ async function renderChart() {
     scrollZoom: true,
   };
 
-  Plotly.newPlot('chart', traces, layout, config);
-  const notePrefix = currentChartFilter === 'f05'
+  Plotly.newPlot(targetId, traces, layout, config);
+  const notePrefix = activeChartFilter === 'f05'
     ? f05Rows.length + ' f=0.05 rows tracked; ' + chartPoints.length + ' currently have chart coordinates. '
     : chartPoints.length + ' charted runs (' + finishedCount + ' finished, ' + runningCount + ' running). ';
-  document.getElementById('chart-note').innerHTML =
-    notePrefix +
-    'Open markers = running. Use mouse to drag-zoom on the chart, or set axis ranges above. ' +
-    'Double-click chart to reset zoom.';
+  const note = document.getElementById(noteId);
+  if (note) {
+    note.innerHTML =
+      notePrefix +
+      'Open markers = running. Use mouse to drag-zoom on the chart, or set axis ranges above. ' +
+      'Double-click chart to reset zoom.';
+  }
 
   // Click to open W&B run
-  document.getElementById('chart').on('plotly_click', function(data) {
+  document.getElementById(targetId).on('plotly_click', function(data) {
     const pt = data.points[0];
     if (pt.customdata) window.open(pt.customdata, '_blank');
   });
