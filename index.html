@@ -11915,6 +11915,10 @@ function isF05ChartOverlay(row) {
   return F05_CHART_OVERLAY_SWEEP_IDS.has(String(row?.['Sweep ID'] || ''));
 }
 
+function isF05TrackingRow(row) {
+  return isHalfF(row?.['Rep Budget']) || isF05ChartOverlay(row);
+}
+
 let currentTableFilter = 'all';
 let f05RunLinksPromise = null;
 const EMBEDDED_F05_RUN_LINKS = new Set([
@@ -11965,7 +11969,7 @@ function loadF05RunLinks() {
   if (!f05RunLinksPromise) {
     f05RunLinksPromise = loadRunCsvRows().then(rows => {
       const links = new Set(EMBEDDED_F05_RUN_LINKS);
-      rows.filter(row => isHalfF(row['Rep Budget'])).forEach(row => {
+      rows.filter(isF05TrackingRow).forEach(row => {
         if (row['W&B Link']) links.add(row['W&B Link']);
       });
       return links;
@@ -11995,7 +11999,7 @@ async function applyTableFilter() {
     row.hidden = !isVisible;
     if (isVisible) visibleCount += 1;
   });
-  status.textContent = 'Showing ' + visibleCount + ' f=0.05 runs';
+  status.textContent = 'Showing ' + visibleCount + ' f=0.05/seed-overlay runs';
 }
 
 function setTableFilter(filter) {
@@ -12046,12 +12050,12 @@ function statusClass(state) {
 }
 
 async function renderF05Tab() {
-  const rows = (await loadRunCsvRows()).filter(r => isHalfF(r['Rep Budget']));
+  const rows = (await loadRunCsvRows()).filter(isF05TrackingRow);
   const summary = document.getElementById('f05-summary');
   const tbody = document.querySelector('#f05-runs tbody');
 
   if (rows.length === 0) {
-    summary.innerHTML = '<p class="section-note">No f=0.05 runs found in runs.csv yet.</p>';
+    summary.innerHTML = '<p class="section-note">No f=0.05 or seed-overlay runs found in runs.csv yet.</p>';
     tbody.innerHTML = '';
     return;
   }
@@ -12065,7 +12069,7 @@ async function renderF05Tab() {
   summary.innerHTML = [
     ['Running', stateCounts.running || 0],
     ['Finished', stateCounts.finished || 0],
-    ['Total f=0.05 Runs', rows.length],
+    ['Total Tracked Runs', rows.length],
     ['Models', modelCounts.join(', ')],
   ].map(([label, value]) => (
     '<div class="stat"><div class="stat-num">' + escapeHTML(value) + '</div><div class="stat-label">' + escapeHTML(label) + '</div></div>'
@@ -12085,6 +12089,7 @@ async function renderF05Tab() {
     const sweepLink = row['Sweep ID']
       ? 'https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/' + row['Sweep ID']
       : '#';
+    const fLabel = isF05ChartOverlay(row) ? '0.1 seed overlay' : '0.05';
     return '<tr>' +
       '<td><a href="' + escapeHTML(runLink) + '" target="_blank">' + escapeHTML(row.Name) + '</a></td>' +
       '<td><span class="status-pill ' + statusClass(state) + '">' + escapeHTML(state) + '</span></td>' +
@@ -12092,7 +12097,7 @@ async function renderF05Tab() {
       '<td>' + escapeHTML(row.Model) + '</td>' +
       '<td>' + escapeHTML(row['Num Repeats']) + '</td>' +
       '<td>' + escapeHTML(row.Direction) + '</td>' +
-      '<td>0.05</td>' +
+      '<td>' + escapeHTML(fLabel) + '</td>' +
       '<td>' + escapeHTML(row['OT Multiplier']) + 'x</td>' +
       '<td>' + escapeHTML(row['Eval Loss'] || '-') + '</td>' +
       '<td>' + escapeHTML(row['Train Loss (last)'] || '-') + '</td>' +
