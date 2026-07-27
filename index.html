@@ -12214,7 +12214,8 @@ function updateChartSummary(data) {
   if (!el) return;
   const finished = data.filter(p => p.state === 'finished').length;
   const running = data.filter(p => p.state === 'running').length;
-  el.innerHTML = data.length + ' runs plotted (' + finished + ' finished, ' + running + ' running). '
+  const prefix = chartMode === 'f05' ? 'f=0.05/seed-overlay points plotted: ' : '';
+  el.innerHTML = prefix + data.length + ' runs plotted (' + finished + ' finished, ' + running + ' running). '
     + 'Open markers = running. Use mouse to drag-zoom on the chart, or set axis ranges above. '
     + 'Double-click chart to reset zoom.';
 }
