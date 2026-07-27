@@ -11574,13 +11574,15 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
   document.querySelector('.tab[onclick*="' + tab + '"]').classList.add('active');
-  if (tab === 'chart' && !window._chartRendered) {
+  if (tab === 'chart') {
     renderChart();
     window._chartRendered = true;
   }
-  if (tab === 'f05' && !window._f05Rendered) {
+  if (tab === 'f05') {
     renderF05Tab();
-    renderChart('f05-chart', 'f05-chart-note', 'f05');
+    renderChart('f05-chart', 'f05-chart-note', 'f05').then(() => {
+      if (window.Plotly) Plotly.Plots.resize('f05-chart');
+    });
     window._f05Rendered = true;
   }
 }
@@ -11689,6 +11691,12 @@ function isHalfF(repBudget) {
   if (text === '5%') return true;
   const numeric = parseFloat(text);
   return numeric === 0.05 || numeric === 5;
+}
+
+function isCleanFinishedChartRow(row) {
+  const state = String(row?.State || row?.state || '').trim().toLowerCase();
+  const finished = String(row?.Finished || '').trim().toLowerCase();
+  return state === 'finished' && !finished.includes('failed') && !finished.includes('crashed');
 }
 
 const F05_CHART_OVERLAY_SWEEP_IDS = new Set([
@@ -11899,8 +11907,9 @@ async function renderChart(targetId = 'chart', noteId = 'chart-note', filterOver
   csvRows.forEach(row => {
     if (row['W&B Link']) rowsByUrl[row['W&B Link']] = row;
   });
-  const f05Rows = csvRows.filter(row => isHalfF(row['Rep Budget']) || isF05ChartOverlay(row));
-  const hasHalfFInCsv = f05Rows.length > 0;
+  const trackedF05Rows = csvRows.filter(row => isHalfF(row['Rep Budget']) || isF05ChartOverlay(row));
+  const f05Rows = trackedF05Rows.filter(isCleanFinishedChartRow);
+  const hasHalfFInCsv = trackedF05Rows.length > 0;
   const embeddedChartUrls = new Set(chartData.map(point => point.url));
   const f05ChartPoints = f05Rows
     .filter(row => row['W&B Link'] && !embeddedChartUrls.has(row['W&B Link']))
@@ -11926,24 +11935,28 @@ async function renderChart(targetId = 'chart', noteId = 'chart-note', filterOver
     .filter(point => Number.isFinite(point.unique_tokens) && Number.isFinite(point.eval_loss));
   const allChartPoints = chartData.map(point => {
     const meta = rowsByUrl[point.url] || {};
+    const hasMeta = Object.keys(meta).length > 0;
     const repBudget = meta['Rep Budget'] || point.rep_budget || '10%';
     const chartRepBudget = isF05ChartOverlay(meta) ? '5%' : repBudget;
     return {
       ...point,
       rep_budget: repBudget,
       is_half_f: isHalfF(chartRepBudget),
+      is_clean_finished: hasMeta ? isCleanFinishedChartRow(meta) : point.state === 'finished',
       group: formatChartGroup(point, chartRepBudget, meta),
     };
   }).concat(f05ChartPoints.map(point => ({
     ...point,
     is_half_f: true,
+    is_clean_finished: true,
     group: point.chart_overlay
       ? point.model + ' (OT=' + point.ot + ', f=0.1 seed overlay)'
       : formatChartGroup(point, point.rep_budget),
   }))).filter(point => Number.isFinite(point.unique_tokens) && Number.isFinite(point.eval_loss));
-  const chartPoints = activeChartFilter === 'f05'
-    ? allChartPoints.filter(point => point.is_half_f)
-    : allChartPoints;
+  const chartPoints = allChartPoints.filter(point => {
+    if (point.is_half_f && !point.is_clean_finished) return false;
+    return activeChartFilter === 'f05' ? point.is_half_f : true;
+  });
 
   // Group by model+OT
   const groups = {};
@@ -12046,7 +12059,7 @@ async function renderChart(targetId = 'chart', noteId = 'chart-note', filterOver
   const finishedCount = chartPoints.filter(point => point.state === 'finished').length;
   const runningCount = chartPoints.filter(point => point.state === 'running').length;
   const filterLabel = activeChartFilter === 'f05' ? 'f=0.05' : 'All runs';
-  const missingF05Coordinates = activeChartFilter === 'f05' && f05Rows.length > 0 && chartPoints.length === 0;
+  const missingF05Coordinates = activeChartFilter === 'f05' && trackedF05Rows.length > 0 && chartPoints.length === 0;
 
   const layout = {
     title: {
@@ -12098,7 +12111,7 @@ async function renderChart(targetId = 'chart', noteId = 'chart-note', filterOver
 
   Plotly.newPlot(targetId, traces, layout, config);
   const notePrefix = activeChartFilter === 'f05'
-    ? f05Rows.length + ' f=0.05 rows tracked; ' + chartPoints.length + ' currently have chart coordinates. '
+    ? trackedF05Rows.length + ' f=0.05/seed-overlay rows tracked; ' + chartPoints.length + ' clean finished points charted. '
     : chartPoints.length + ' charted runs (' + finishedCount + ' finished, ' + runningCount + ' running). ';
   const note = document.getElementById(noteId);
   if (note) {
