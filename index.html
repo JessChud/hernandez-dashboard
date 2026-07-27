@@ -67,10 +67,10 @@
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-27 18:52:30 UTC <span style="color:#9ca3af">| artifact 20260727185230UTC; targeted W&amp;B refresh; f=0.05 tab verified; CSV cache-busted</span></div>
+<div class="meta">Updated: 2026-07-27 18:58:40 UTC <span style="color:#9ca3af">| artifact 20260727185840UTC; targeted W&amp;B refresh; f=0.05 tab verified; CSV cache-busted</span></div>
 
 <div class="stats">
-  <div class="stat"><div class="stat-num">7</div><div class="stat-label">Running</div></div>
+  <div class="stat"><div class="stat-num">6</div><div class="stat-label">Running</div></div>
   <div class="stat"><div class="stat-num">614</div><div class="stat-label">Finished</div></div>
   <div class="stat"><div class="stat-num">383</div><div class="stat-label">Sweeps</div></div>
   <div class="stat"><div class="stat-num">702</div><div class="stat-label">Total Runs</div></div>
@@ -11694,12 +11694,12 @@
   <td>top</td>
   <td>1x</td>
   <td>-</td>
-  <td>3.3264</td>
-  <td>6150</td>
-  <td>0.809</td>
-  <td>2.48B</td>
-  <td>83764</td>
-  <td>8h 18m (running)</td>
+  <td>3.3177</td>
+  <td>6225</td>
+  <td>0.819</td>
+  <td>2.51B</td>
+  <td>83765</td>
+  <td>8h 24m (running)</td>
   <td></td>
   <td>2026-07-27T10:32:18Z</td>
 </tr><tr>
@@ -11864,12 +11864,12 @@
   <td>top</td>
   <td>1x</td>
   <td>-</td>
-  <td>3.5144</td>
-  <td>3075</td>
-  <td>0.404</td>
-  <td>1.24B</td>
-  <td>83594</td>
-  <td>4h 39m (running)</td>
+  <td>3.5078</td>
+  <td>3125</td>
+  <td>0.411</td>
+  <td>1.26B</td>
+  <td>83599</td>
+  <td>4h 45m (running)</td>
   <td></td>
   <td>2026-07-27T14:12:53Z</td>
 </tr><tr>
@@ -11971,7 +11971,7 @@
   <td>-</td>
   <td>-</td>
   <td>-</td>
-  <td>2h 16m (running)</td>
+  <td>2h 22m (running)</td>
   <td></td>
   <td>2026-07-27T16:36:17Z</td>
 </tr><tr>
@@ -11988,12 +11988,12 @@
   <td>-</td>
   <td>-</td>
   <td>-</td>
-  <td>1h 57m (running)</td>
+  <td>2h 3m (running)</td>
   <td></td>
   <td>2026-07-27T16:55:06Z</td>
 </tr><tr>
   <td><a href="https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/eomtznn0" target="_blank">eager-sweep-1</a></td>
-  <td><span style="background:#22c55e;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">running</span></td>
+  <td><span style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">failed</span></td>
   <td><a href="https://wandb.ai/jchud-stanford-university/hernandez-replication/sweeps/1e9e6i4h" target="_blank">1e9e6i4h</a></td>
   <td>63M</td>
   <td>1500</td>
@@ -12005,8 +12005,8 @@
   <td>-</td>
   <td>-</td>
   <td>-</td>
-  <td>0h 31m (running)</td>
-  <td></td>
+  <td>0h 37m ago</td>
+  <td>failed: Hugging Face dataset metadata connection timeout</td>
   <td>2026-07-27T18:21:01Z</td>
 </tr><tr>
   <td><a href="https://wandb.ai/jchud-stanford-university/hernandez-replication/runs/yezzzub3" target="_blank">visionary-sweep-1</a></td>
@@ -12022,7 +12022,7 @@
   <td>-</td>
   <td>-</td>
   <td>-</td>
-  <td>0h 11m (running)</td>
+  <td>0h 17m (running)</td>
   <td></td>
   <td>2026-07-27T18:40:42Z</td>
 </tr><tr>
@@ -12039,7 +12039,7 @@
   <td>-</td>
   <td>-</td>
   <td>-</td>
-  <td>0h 11m (running)</td>
+  <td>0h 17m (running)</td>
   <td></td>
   <td>2026-07-27T18:40:49Z</td>
 </tr></tbody>
@@ -12172,7 +12172,7 @@ function humanTokens(n) {
   return n.toFixed(0);
 }
 
-const DASHBOARD_BUILD_VERSION = "20260727185230UTC";
+const DASHBOARD_BUILD_VERSION = "20260727185840UTC";
 const RUNS_CSV_URL = 'runs.csv?v=' + encodeURIComponent(DASHBOARD_BUILD_VERSION);
 
 let runCsvRowsPromise = null;
