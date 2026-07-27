@@ -6,6 +6,17 @@
 <meta http-equiv="Expires" content="0">
 <title>W&B Dashboard — hernandez-replication</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script>
+(function () {
+  const params = new URLSearchParams(location.search);
+  const raw = (params.get('tab') || location.hash.slice(1) || '').toLowerCase().trim().replace(/^#/, '');
+  if (['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'].includes(raw)) {
+    document.documentElement.dataset.initialTab = 'f05';
+  } else if (['chart', 'plot', 'loss'].includes(raw)) {
+    document.documentElement.dataset.initialTab = 'chart';
+  }
+})();
+</script>
 <style>
   * { box-sizing: border-box; }
   body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 20px; background: #f9fafb; }
@@ -24,9 +35,21 @@
   .tab:hover { color: #111; background: #f3f4f6; }
   .tab.active { color: #2563eb; border-color: #e5e7eb; border-bottom: 2px solid #fff;
                  margin-bottom: -2px; background: #fff; }
+  html[data-initial-tab="f05"] .tabs .tab[data-tab="table"],
+  html[data-initial-tab="chart"] .tabs .tab[data-tab="table"] {
+    color: #6b7280; border-color: transparent; border-bottom: none; margin-bottom: 0; background: transparent;
+  }
+  html[data-initial-tab="f05"] .tabs .tab[data-tab="f05"],
+  html[data-initial-tab="chart"] .tabs .tab[data-tab="chart"] {
+    color: #2563eb; border-color: #e5e7eb; border-bottom: 2px solid #fff; margin-bottom: -2px; background: #fff;
+  }
   .tab-content { display: none; background: #fff; padding: 20px; border: 1px solid #e5e7eb; border-top: none;
                   border-radius: 0 0 8px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
   .tab-content.active { display: block; }
+  html[data-initial-tab="f05"] #tab-table,
+  html[data-initial-tab="chart"] #tab-table { display: none; }
+  html[data-initial-tab="f05"] #tab-f05,
+  html[data-initial-tab="chart"] #tab-chart { display: block; }
 
   /* Table */
   table { border-collapse: collapse; width: 100%; }
@@ -67,7 +90,7 @@
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-27 23:20:52 UTC <span style="color:#9ca3af">| artifact 20260727232052UTC; CSV cache-busted</span></div>
+<div class="meta">Updated: 2026-07-27 23:27:57 UTC <span style="color:#9ca3af">| artifact 20260727232757UTC; CSV cache-busted</span></div>
 
 <div class="stats">
   <div class="stat"><div class="stat-num">14</div><div class="stat-label">Running</div></div>
@@ -12371,7 +12394,19 @@
 
 <script>
 // --- Tab switching ---
-function switchTab(tab){
+function setDashboardUrlState(tab, filter = null) {
+  if (!window.history || !window.history.replaceState) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set('tab', tab);
+  if (filter) {
+    url.searchParams.set('filter', filter);
+  } else {
+    url.searchParams.delete('filter');
+  }
+  window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+}
+
+function switchTab(tab, options = {}){
   const target = ['table','chart','f05'].includes(tab) ? tab : 'table';
   document.querySelectorAll('.tab').forEach(t => {
     const active = t.dataset.tab === target;
@@ -12380,6 +12415,9 @@ function switchTab(tab){
   });
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + target)?.classList.add('active');
+  if (!options.skipUrlUpdate) {
+    setDashboardUrlState(target, target === 'chart' && currentChartFilter === 'f05' ? 'f05' : null);
+  }
   if (target === 'chart') renderChart();
   if (target === 'f05') {
     renderF05Tab();
@@ -12393,6 +12431,11 @@ function initialDashboardTab(){
   if (['chart', 'plot', 'loss'].includes(normalized)) return 'chart';
   if (['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'].includes(normalized)) return 'f05';
   return 'table';
+}
+function initialChartFilter(){
+  const p = new URLSearchParams(location.search);
+  const raw = (p.get('filter') || p.get('f') || '').toLowerCase().trim();
+  return ['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'].includes(raw) ? 'f05' : 'all';
 }
 
 // --- Table sorting ---
@@ -12432,7 +12475,7 @@ function humanTokens(n) {
   return n.toFixed(0);
 }
 
-const DASHBOARD_BUILD_VERSION = "20260727232052UTC";
+const DASHBOARD_BUILD_VERSION = "20260727232757UTC";
 const RUNS_CSV_URL = 'runs.csv?v=' + encodeURIComponent(DASHBOARD_BUILD_VERSION);
 
 let runCsvRowsPromise = null;
@@ -12650,10 +12693,10 @@ function setTableFilter(filter) {
 
 document.addEventListener('DOMContentLoaded', () => {
   applyTableFilter();
-  switchTab(initialDashboardTab());
+  switchTab(initialDashboardTab(), { skipUrlUpdate: true });
 });
 
-let currentChartFilter = 'all';
+let currentChartFilter = initialChartFilter();
 
 function setChartFilterButtonState(filter) {
   document.getElementById('chart-filter-all')?.classList.toggle('primary', filter === 'all');
@@ -12663,6 +12706,7 @@ function setChartFilterButtonState(filter) {
 function setChartFilter(filter) {
   currentChartFilter = filter;
   otFilterActive = false;
+  setDashboardUrlState('chart', filter === 'f05' ? 'f05' : null);
   renderChart();
   window._chartRendered = true;
 }
