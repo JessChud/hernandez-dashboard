@@ -9,11 +9,15 @@
 <script>
 (function () {
   const params = new URLSearchParams(location.search);
-  const raw = (params.get('tab') || location.hash.slice(1) || '').toLowerCase().trim().replace(/^#/, '');
-  if (['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'].includes(raw)) {
-    document.documentElement.dataset.initialTab = 'f05';
-  } else if (['chart', 'plot', 'loss'].includes(raw)) {
+  const normalize = value => String(value || '').toLowerCase().trim().replace(/^#/, '');
+  const f05Aliases = ['f05', 'f-05', 'f0.05', '0.05', '.05', 'f=0.05', 'f=.05', 'half-f', 'half_f', '5%', '0p05'];
+  const chartAliases = ['chart', 'plot', 'loss'];
+  const requestedView = normalize(params.get('tab') || params.get('view') || location.hash.slice(1));
+  const requestedFilter = normalize(params.get('filter') || params.get('f'));
+  if (chartAliases.includes(requestedView)) {
     document.documentElement.dataset.initialTab = 'chart';
+  } else if (f05Aliases.includes(requestedView) || (!requestedView && f05Aliases.includes(requestedFilter))) {
+    document.documentElement.dataset.initialTab = 'f05';
   }
 })();
 </script>
@@ -90,7 +94,7 @@
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-28 00:21:02 UTC <span style="color:#9ca3af">| artifact 20260728002102UTC; CSV cache-busted</span></div>
+<div class="meta">Updated: 2026-07-28 00:46:03 UTC <span style="color:#9ca3af">| artifact 20260728004603UTC; CSV cache-busted</span></div>
 
 <div class="stats">
   <div class="stat"><div class="stat-num">14</div><div class="stat-label">Running</div></div>
@@ -104,7 +108,7 @@
 <div class="tabs" role="tablist" aria-label="Dashboard views">
   <button class="tab active" data-tab="table" type="button" onclick="switchTab('table')" role="tab" aria-controls="tab-table">Runs Table</button>
   <button class="tab" data-tab="chart" type="button" onclick="switchTab('chart')" role="tab" aria-controls="tab-chart">Loss vs Unique Tokens Chart</button>
-  <button class="tab" data-tab="f05" type="button" onclick="switchTab('f05')" role="tab" aria-controls="tab-f05">f=0.05 Tracking</button>
+  <button class="tab" data-tab="f05" type="button" onclick="switchTab('f05')" role="tab" aria-controls="tab-f05">f=0.05 Dashboard</button>
 </div>
 
 <!-- TABLE TAB -->
@@ -12416,7 +12420,7 @@ function switchTab(tab, options = {}){
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + target)?.classList.add('active');
   if (!options.skipUrlUpdate) {
-    setDashboardUrlState(target, target === 'chart' && currentChartFilter === 'f05' ? 'f05' : null);
+    setDashboardUrlState(target, (target === 'f05' || (target === 'chart' && currentChartFilter === 'f05')) ? 'f05' : null);
   }
   if (target === 'chart') renderChart();
   if (target === 'f05') {
@@ -12426,16 +12430,18 @@ function switchTab(tab, options = {}){
 }
 function initialDashboardTab(){
   const p = new URLSearchParams(location.search);
-  const raw = (p.get('tab') || location.hash.slice(1) || '').toLowerCase().trim();
-  const normalized = raw.replace(/^#/, '');
-  if (['chart', 'plot', 'loss'].includes(normalized)) return 'chart';
-  if (['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'].includes(normalized)) return 'f05';
+  const normalize = value => String(value || '').toLowerCase().trim().replace(/^#/, '');
+  const f05Aliases = ['f05', 'f-05', 'f0.05', '0.05', '.05', 'f=0.05', 'f=.05', 'half-f', 'half_f', '5%', '0p05'];
+  const requestedView = normalize(p.get('tab') || p.get('view') || location.hash.slice(1));
+  const requestedFilter = normalize(p.get('filter') || p.get('f'));
+  if (['chart', 'plot', 'loss'].includes(requestedView)) return 'chart';
+  if (f05Aliases.includes(requestedView) || (!requestedView && f05Aliases.includes(requestedFilter))) return 'f05';
   return 'table';
 }
 function initialChartFilter(){
   const p = new URLSearchParams(location.search);
-  const raw = (p.get('filter') || p.get('f') || '').toLowerCase().trim();
-  return ['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'].includes(raw) ? 'f05' : 'all';
+  const raw = String(p.get('filter') || p.get('f') || '').toLowerCase().trim().replace(/^#/, '');
+  return ['f05', 'f-05', 'f0.05', '0.05', '.05', 'f=0.05', 'f=.05', 'half-f', 'half_f', '5%', '0p05'].includes(raw) || initialDashboardTab() === 'f05' ? 'f05' : 'all';
 }
 
 // --- Table sorting ---
@@ -12475,7 +12481,7 @@ function humanTokens(n) {
   return n.toFixed(0);
 }
 
-const DASHBOARD_BUILD_VERSION = "20260728002102UTC";
+const DASHBOARD_BUILD_VERSION = "20260728004603UTC";
 const RUNS_CSV_URL = 'runs.csv?v=' + encodeURIComponent(DASHBOARD_BUILD_VERSION);
 
 let runCsvRowsPromise = null;
