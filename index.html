@@ -8,9 +8,12 @@
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script>
 (function () {
+  const f05Aliases = ['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'];
+  const isF05Alias = (value) => f05Aliases.includes(String(value || '').toLowerCase().trim().replace(/^#/, ''));
   const params = new URLSearchParams(location.search);
   const raw = (params.get('tab') || location.hash.slice(1) || '').toLowerCase().trim().replace(/^#/, '');
-  if (['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'].includes(raw)) {
+  const filterRaw = params.get('filter') || params.get('f') || '';
+  if (isF05Alias(raw) || isF05Alias(filterRaw)) {
     document.documentElement.dataset.initialTab = 'f05';
   } else if (['chart', 'plot', 'loss'].includes(raw)) {
     document.documentElement.dataset.initialTab = 'chart';
@@ -65,6 +68,7 @@
   .filter-btn:hover { background: #e5e7eb; }
   .filter-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
   .filter-status { color: #6b7280; font-size: 13px; }
+  .tab-heading { font-size: 18px; margin: 0 0 8px 0; }
 
   /* Chart controls */
   .chart-controls { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-bottom: 12px; padding: 12px;
@@ -90,7 +94,7 @@
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-28 05:50:03 UTC <span style="color:#9ca3af">| artifact 20260728055003UTC; CSV cache-busted</span></div>
+<div class="meta">Updated: 2026-07-28 06:14:03 UTC <span style="color:#9ca3af">| artifact 20260728061403UTC; CSV cache-busted</span></div>
 
 <div class="stats">
   <div class="stat"><div class="stat-num">7</div><div class="stat-label">Running</div></div>
@@ -104,7 +108,7 @@
 <div class="tabs" role="tablist" aria-label="Dashboard views">
   <button class="tab active" data-tab="table" type="button" onclick="switchTab('table')" role="tab" aria-controls="tab-table">Runs Table</button>
   <button class="tab" data-tab="chart" type="button" onclick="switchTab('chart')" role="tab" aria-controls="tab-chart">Loss vs Unique Tokens Chart</button>
-  <button class="tab" data-tab="f05" type="button" onclick="switchTab('f05')" role="tab" aria-controls="tab-f05">f=0.05 Tracking</button>
+  <button class="tab" data-tab="f05" type="button" onclick="switchTab('f05')" role="tab" aria-controls="tab-f05">f=0.05 Dashboard</button>
 </div>
 
 <!-- TABLE TAB -->
@@ -12477,7 +12481,7 @@
     <label>Runs</label>
     <div class="button-row">
       <button id="chart-filter-all" class="primary" onclick="setChartFilter('all')">All Runs</button>
-      <button id="chart-filter-f05" onclick="setChartFilter('f05')">f=0.05</button>
+      <button id="chart-filter-f05" onclick="setChartFilter('f05')">f=0.05 Dashboard</button>
     </div>
   </div>
   <div class="control-group">
@@ -12497,8 +12501,9 @@
 
 <!-- F=0.05 TRACKING TAB -->
 <div id="tab-f05" class="tab-content">
+<h2 class="tab-heading">f=0.05 Dashboard</h2>
 <p class="section-note">
-  Tracks the new f=0.05 condition. Plotted points are clean finished runs only; failed/crashed attempts stay out of the chart.
+  Source of truth for the new f=0.05 condition. The chart uses clean finished rows from runs.csv; failed/crashed attempts stay out of the plot and active rows stay in the table.
 </p>
 <div id="f05-chart" style="width:100%; height:620px;"></div>
 <p id="f05-chart-note" style="color:#6b7280; font-size:13px; margin-top:8px;">
@@ -12542,6 +12547,11 @@ function setDashboardUrlState(tab, filter = null) {
   window.history.replaceState(null, '', url.pathname + url.search + url.hash);
 }
 
+function isF05ParamValue(value) {
+  const normalized = String(value || '').toLowerCase().trim().replace(/^#/, '');
+  return ['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'].includes(normalized);
+}
+
 function switchTab(tab, options = {}){
   const target = ['table','chart','f05'].includes(tab) ? tab : 'table';
   document.querySelectorAll('.tab').forEach(t => {
@@ -12552,7 +12562,14 @@ function switchTab(tab, options = {}){
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + target)?.classList.add('active');
   if (!options.skipUrlUpdate) {
-    setDashboardUrlState(target, target === 'chart' && currentChartFilter === 'f05' ? 'f05' : null);
+    const filter = target === 'f05'
+      ? 'f05'
+      : target === 'table' && currentTableFilter === 'f05'
+        ? 'f05'
+        : target === 'chart' && currentChartFilter === 'f05'
+          ? 'f05'
+          : null;
+    setDashboardUrlState(target, filter);
   }
   if (target === 'chart') renderChart();
   if (target === 'f05') {
@@ -12564,19 +12581,20 @@ function initialDashboardTab(){
   const p = new URLSearchParams(location.search);
   const raw = (p.get('tab') || location.hash.slice(1) || '').toLowerCase().trim();
   const normalized = raw.replace(/^#/, '');
+  if (isF05ParamValue(p.get('filter')) || isF05ParamValue(p.get('f'))) return 'f05';
   if (['chart', 'plot', 'loss'].includes(normalized)) return 'chart';
-  if (['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'].includes(normalized)) return 'f05';
+  if (isF05ParamValue(normalized)) return 'f05';
   return 'table';
 }
 function initialChartFilter(){
   const p = new URLSearchParams(location.search);
   const raw = (p.get('filter') || p.get('f') || '').toLowerCase().trim();
-  return ['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'].includes(raw) ? 'f05' : 'all';
+  return isF05ParamValue(raw) ? 'f05' : 'all';
 }
 function initialTableFilter(){
   const p = new URLSearchParams(location.search);
   const raw = (p.get('filter') || p.get('f') || '').toLowerCase().trim();
-  return ['f05', 'f-05', 'f0.05', '0.05', 'f=0.05', 'f=.05', 'half-f'].includes(raw) ? 'f05' : 'all';
+  return isF05ParamValue(raw) ? 'f05' : 'all';
 }
 
 // --- Table sorting ---
@@ -12616,7 +12634,7 @@ function humanTokens(n) {
   return n.toFixed(0);
 }
 
-const DASHBOARD_BUILD_VERSION = "20260728055003UTC";
+const DASHBOARD_BUILD_VERSION = "20260728061403UTC";
 const RUNS_CSV_URL = 'runs.csv?v=' + encodeURIComponent(DASHBOARD_BUILD_VERSION);
 
 let runCsvRowsPromise = null;
@@ -12854,6 +12872,12 @@ function setChartFilterButtonState(filter) {
 }
 
 function setChartFilter(filter) {
+  if (filter === 'f05') {
+    currentChartFilter = 'f05';
+    switchTab('f05');
+    window._chartRendered = true;
+    return;
+  }
   currentChartFilter = filter;
   otFilterActive = false;
   setDashboardUrlState('chart', filter === 'f05' ? 'f05' : null);
