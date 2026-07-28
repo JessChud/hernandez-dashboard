@@ -74,7 +74,9 @@ def query_wandb(project: str, rows: list[dict[str, str]], run_ids: list[str]) ->
                     or summary.get("trainer/global_step")
                     or summary.get("global_step")
                     or summary.get("_step"),
-                    "epoch": summary.get("epoch"),
+                    "epoch": summary.get("epoch")
+                    or summary.get("train/epoch")
+                    or summary.get("trainer/epoch"),
                     "train_loss": summary.get("train/loss")
                     or summary.get("train_loss")
                     or summary.get("loss/train")
@@ -226,7 +228,13 @@ def update_csv(runs_csv: Path, rows: list[dict[str, str]], records: dict[str, di
         record = records.get(run_id)
         if not record:
             continue
-        before = (row.get("State"), row.get("Train Loss (last)"), row.get("Global Step"), row.get("Duration"))
+        before = (
+            row.get("State"),
+            row.get("Train Loss (last)"),
+            row.get("Global Step"),
+            row.get("Epoch"),
+            row.get("Duration"),
+        )
         row["State"] = str(record.get("state") or row.get("State") or "")
         if record.get("name"):
             row["Name"] = str(record["name"])
@@ -240,13 +248,21 @@ def update_csv(runs_csv: Path, rows: list[dict[str, str]], records: dict[str, di
             row["Global Step"] = str(int(float(record["step"])))
         if record.get("epoch") is not None:
             row["Epoch"] = str(record["epoch"])
+        elif str(record.get("state", "")).lower() == "running":
+            row["Epoch"] = ""
         if record.get("tokens_seen") is not None:
             row["Tokens Seen"] = str(int(float(record["tokens_seen"])))
         if record.get("tok_s") is not None:
             row["Train Tok/s"] = str(record["tok_s"])
         if record.get("runtime") is not None:
             row["Duration"] = human_duration(record["runtime"], str(record.get("state", "")).lower() == "running")
-        after = (row.get("State"), row.get("Train Loss (last)"), row.get("Global Step"), row.get("Duration"))
+        after = (
+            row.get("State"),
+            row.get("Train Loss (last)"),
+            row.get("Global Step"),
+            row.get("Epoch"),
+            row.get("Duration"),
+        )
         if before != after:
             changed.append((run_id, row.get("Model"), row.get("Rep Budget"), row.get("Num Repeats"), before, after))
 
