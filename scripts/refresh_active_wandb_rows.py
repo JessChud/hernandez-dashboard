@@ -23,6 +23,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--runs-csv", type=Path, default=Path("runs.csv"))
     parser.add_argument("--index-html", type=Path, default=Path("index.html"))
     parser.add_argument("--query-json", type=Path, default=Path("/tmp/hernandez_running_exact_latest.json"))
+    parser.add_argument(
+        "--include-run-id",
+        action="append",
+        default=[],
+        help="Also query and add this W&B run ID if it is not already in runs.csv.",
+    )
     return parser.parse_args()
 
 
@@ -60,6 +66,7 @@ def query_wandb(project: str, rows: list[dict[str, str]], run_ids: list[str]) ->
                 {
                     "state": run.state,
                     "name": run.name,
+                    "config": dict(run.config),
                     "created_at": str(run.created_at),
                     "sweep": getattr(run.sweep, "id", None) if run.sweep else None,
                     "runtime": summary.get("_runtime") or summary.get("runtime"),
@@ -88,6 +95,98 @@ def query_wandb(project: str, rows: list[dict[str, str]], run_ids: list[str]) ->
             record["error"] = repr(exc)
         records.append(record)
     return {"queried_at": dt.datetime.now(dt.timezone.utc).isoformat(), "runs": records}
+
+
+def nested_value(config: dict[str, Any], section: str, key: str, default: Any = "") -> Any:
+    value = config.get(section, {})
+    if isinstance(value, dict):
+        return value.get(key, default)
+    return default
+
+
+def model_label(model_name: Any) -> str:
+    text = str(model_name or "")
+    match = re.search(r"Qwen3[-/](\d+M)", text, re.I)
+    if match:
+        return match.group(1)
+    return text.rsplit("/", 1)[-1] if text else ""
+
+
+def rep_budget_label(value: Any) -> str:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return str(value or "")
+    percent = numeric * 100
+    if percent.is_integer():
+        return f"{int(percent)}%"
+    return f"{percent:g}%"
+
+
+def created_at_for_row(value: Any) -> str:
+    if not value:
+        return ""
+    try:
+        parsed = dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return str(value)
+    return parsed.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def row_from_record(record: dict[str, Any], fieldnames: list[str]) -> dict[str, str]:
+    config = record.get("config") if isinstance(record.get("config"), dict) else {}
+    data_config = config.get("data_config", {}) if isinstance(config.get("data_config"), dict) else {}
+    trainer_config = config.get("trainer_config", {}) if isinstance(config.get("trainer_config"), dict) else {}
+    model_config = config.get("model_config", {}) if isinstance(config.get("model_config"), dict) else {}
+
+    num_repeats = data_config.get("num_repeats", nested_value(config, "data_config", "num_repeats"))
+    repetition_budget = data_config.get(
+        "repetition_budget", nested_value(config, "data_config", "repetition_budget")
+    )
+    model = model_label(model_config.get("model_name", nested_value(config, "model_config", "model_name")))
+    direction = str(data_config.get("direction", nested_value(config, "data_config", "direction")) or "")
+    overtrain = trainer_config.get(
+        "overtrain_multiplier", nested_value(config, "trainer_config", "overtrain_multiplier", 1)
+    )
+
+    row = {field: "" for field in fieldnames}
+    row.update(
+        {
+            "Name": str(record.get("name") or ""),
+            "State": str(record.get("state") or ""),
+            "Sweep ID": str(record.get("sweep") or ""),
+            "Sweep Label": f"{model} nr=[{num_repeats}]" if model and num_repeats != "" else "",
+            "Model": model,
+            "Repeated": "non-repeated" if str(num_repeats) in {"", "1", "1.0"} else "repeated",
+            "Num Repeats": fmt_num(num_repeats, 0),
+            "Rep Budget": rep_budget_label(repetition_budget),
+            "Direction": direction,
+            "OT Multiplier": fmt_num(overtrain, 2) or "1",
+            "Created": created_at_for_row(record.get("created_at")),
+            "W&B Link": str(record.get("url") or ""),
+        }
+    )
+    return row
+
+
+def add_included_rows(
+    rows: list[dict[str, str]], records: dict[str, dict[str, Any]], include_run_ids: list[str]
+) -> list[str]:
+    if not include_run_ids:
+        return []
+    fieldnames = list(rows[0]) if rows else []
+    existing = {run_id_from_link(row.get("W&B Link")) for row in rows}
+    added: list[str] = []
+    for run_id in include_run_ids:
+        if run_id in existing:
+            continue
+        record = records.get(run_id)
+        if not record:
+            continue
+        rows.append(row_from_record(record, fieldnames))
+        existing.add(run_id)
+        added.append(run_id)
+    return added
 
 
 def fmt_num(value: Any, digits: int = 4) -> str:
@@ -285,23 +384,16 @@ def update_index(index_html: Path, rows: list[dict[str, str]], records: dict[str
     text = re.sub(r'DASHBOARD_BUILD_VERSION = "[0-9A-Z]+"', f'DASHBOARD_BUILD_VERSION = "{build}"', text, count=1)
     text = update_top_stats(text, rows)
 
-    row_by_run_id = {run_id_from_link(row.get("W&B Link")): row for row in rows}
-    missing: list[str] = []
-    for run_id in records:
-        row = row_by_run_id.get(run_id)
-        if not row:
-            continue
-        pattern = re.compile(
-            r'<tr>\s*<td><a href="https://wandb\.ai/jchud-stanford-university/hernandez-replication/runs/'
-            + re.escape(run_id)
-            + r'" target="_blank">.*?</tr>',
-            re.S,
-        )
-        text, count = pattern.subn(rebuild_html_row(row), text, count=1)
-        if count == 0:
-            missing.append(run_id)
-    if missing:
-        raise RuntimeError(f"Could not find pre-rendered HTML rows for run IDs: {missing}")
+    table_rows = "".join(rebuild_html_row(row) for row in rows)
+    text, count = re.subn(
+        r"(<tbody>).*?(</tbody>)",
+        lambda match: f"{match.group(1)}{table_rows}{match.group(2)}",
+        text,
+        count=1,
+        flags=re.S,
+    )
+    if count != 1:
+        raise RuntimeError("Could not rebuild main table body")
     index_html.write_text(text)
     return build
 
@@ -309,14 +401,23 @@ def update_index(index_html: Path, rows: list[dict[str, str]], records: dict[str
 def main() -> None:
     args = parse_args()
     rows, run_ids = load_running_rows(args.runs_csv)
+    seen_run_ids = set(run_ids)
+    for run_id in args.include_run_id:
+        if run_id not in seen_run_ids:
+            run_ids.append(run_id)
+            seen_run_ids.add(run_id)
     query = query_wandb(args.project, rows, run_ids)
     args.query_json.write_text(json.dumps(query, indent=2, sort_keys=True) + "\n")
     records = {record["id"]: record for record in query["runs"] if "error" not in record}
+    added = add_included_rows(rows, records, args.include_run_id)
     changed = update_csv(args.runs_csv, rows, records)
     build = update_index(args.index_html, rows, records, str(query["queried_at"]))
 
     print(f"build {build}")
     print(f"queried {len(query['runs'])}")
+    print(f"added {len(added)}")
+    for run_id in added:
+        print(f"added {run_id}")
     print(f"changed {len(changed)}")
     for run_id, model, rep_budget, num_repeats, before, after in changed:
         print(f"{run_id} {model} {rep_budget} nr={num_repeats} {before} -> {after}")
