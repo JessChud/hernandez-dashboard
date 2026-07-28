@@ -90,7 +90,7 @@
 </head><body>
 
 <h1>W&B Dashboard — jchud-stanford-university/hernandez-replication</h1>
-<div class="meta">Updated: 2026-07-28 04:09:28 UTC <span style="color:#9ca3af">| artifact 20260728040928UTC; CSV cache-busted</span></div>
+<div class="meta">Updated: 2026-07-28 04:15:46 UTC <span style="color:#9ca3af">| artifact 20260728041546UTC; CSV cache-busted</span></div>
 
 <div class="stats">
   <div class="stat"><div class="stat-num">13</div><div class="stat-label">Running</div></div>
@@ -12110,12 +12110,12 @@
   <td>top</td>
   <td>1x</td>
   <td></td>
-  <td>3.5469</td>
-  <td>3975</td>
+  <td>3.5616</td>
+  <td>4025</td>
   <td>0.758</td>
   <td>1.41B</td>
   <td>50959</td>
-  <td>8h 9m (running)</td>
+  <td>8h 15m (running)</td>
   <td></td>
   <td>2026-07-27T19:56:06Z</td>
 </tr><tr>
@@ -12314,12 +12314,12 @@
   <td>top</td>
   <td>1x</td>
   <td></td>
-  <td>4.8999</td>
-  <td>4325</td>
+  <td>4.8917</td>
+  <td>4500</td>
   <td>0.835</td>
   <td>568.9M</td>
   <td>132822</td>
-  <td>3h 30m (running)</td>
+  <td>3h 33m (running)</td>
   <td></td>
   <td>2026-07-28T00:38:15Z</td>
 </tr><tr>
@@ -12331,12 +12331,12 @@
   <td>top</td>
   <td>1x</td>
   <td></td>
-  <td>5.3042</td>
-  <td>1400</td>
+  <td>5.2026</td>
+  <td>1575</td>
   <td>0.200</td>
   <td>136.7M</td>
   <td>129372</td>
-  <td>2h 49m (running)</td>
+  <td>2h 52m (running)</td>
   <td></td>
   <td>2026-07-28T01:19:25Z</td>
 </tr><tr>
@@ -12348,12 +12348,12 @@
   <td>top</td>
   <td>1x</td>
   <td></td>
-  <td>5.1577</td>
-  <td>1550</td>
+  <td>5.0722</td>
+  <td>1725</td>
   <td>0.233</td>
   <td>158.9M</td>
   <td>128761</td>
-  <td>2h 47m (running)</td>
+  <td>2h 50m (running)</td>
   <td></td>
   <td>2026-07-28T01:21:24Z</td>
 </tr><tr>
@@ -12365,12 +12365,12 @@
   <td>top</td>
   <td>1x</td>
   <td></td>
-  <td>4.4401</td>
-  <td>1350</td>
+  <td>4.4054</td>
+  <td>1525</td>
   <td>0.189</td>
   <td>129.0M</td>
   <td>129115</td>
-  <td>2h 47m (running)</td>
+  <td>2h 50m (running)</td>
   <td></td>
   <td>2026-07-28T01:21:25Z</td>
 </tr><tr>
@@ -12382,12 +12382,12 @@
   <td>top</td>
   <td>1x</td>
   <td></td>
-  <td>4.5469</td>
-  <td>1425</td>
+  <td>4.3903</td>
+  <td>1600</td>
   <td>0.215</td>
   <td>146.7M</td>
   <td>130497</td>
-  <td>2h 47m (running)</td>
+  <td>2h 50m (running)</td>
   <td></td>
   <td>2026-07-28T01:21:25Z</td>
 </tr><tr>
@@ -12399,12 +12399,12 @@
   <td>top</td>
   <td>1x</td>
   <td></td>
-  <td>4.1302</td>
-  <td>2150</td>
+  <td>4.1385</td>
+  <td>2225</td>
   <td>0.514</td>
   <td>646.6M</td>
   <td>111470</td>
-  <td>1h 51m (running)</td>
+  <td>1h 55m (running)</td>
   <td></td>
   <td>2026-07-28T02:16:46Z</td>
 </tr><tr>
@@ -12485,7 +12485,7 @@
 </p>
 <div id="f05-chart" style="width:100%; height:620px;"></div>
 <p id="f05-chart-note" style="color:#6b7280; font-size:13px; margin-top:8px;">
-  f=0.05 charted runs update from the same dashboard data as the main chart.
+  f=0.05 charted runs are rebuilt from runs.csv clean finished rows.
 </p>
 <div id="f05-summary" class="f05-summary"></div>
 <div class="table-wrap">
@@ -12599,7 +12599,7 @@ function humanTokens(n) {
   return n.toFixed(0);
 }
 
-const DASHBOARD_BUILD_VERSION = "20260728040928UTC";
+const DASHBOARD_BUILD_VERSION = "20260728041546UTC";
 const RUNS_CSV_URL = 'runs.csv?v=' + encodeURIComponent(DASHBOARD_BUILD_VERSION);
 
 let runCsvRowsPromise = null;
@@ -12928,6 +12928,36 @@ async function renderF05Tab() {
   }).join('');
 }
 
+function f05RowToChartPoint(row) {
+  const uniqueTokens = parseFloat(row['Unique Tokens']);
+  const evalLoss = parseFloat(row['Eval Loss']);
+  const tokensSeen = parseFloat(row['Tokens Seen']);
+  return {
+    name: row.Name,
+    state: row.State,
+    model: row.Model,
+    ot: parseFloat(row['OT Multiplier']),
+    num_repeats: parseFloat(row['Num Repeats']),
+    unique_tokens: uniqueTokens,
+    eval_loss: evalLoss,
+    direction: row.Direction,
+    tokens_seen_hr: Number.isFinite(tokensSeen) ? humanTokens(tokensSeen) : '-',
+    url: row['W&B Link'],
+    rep_budget: row['Rep Budget'],
+    chart_overlay: isF05ChartOverlay(row),
+    is_retired_f05: isRetiredF05Row(row),
+    is_clean_finished: true,
+    is_half_f: true,
+    group: isF05ChartOverlay(row)
+      ? row.Model + ' (OT=' + parseFloat(row['OT Multiplier']) + ', f=0.1 seed overlay)'
+      : formatChartGroup({
+          model: row.Model,
+          ot: parseFloat(row['OT Multiplier']),
+          group: row.Model + ' (OT=' + parseFloat(row['OT Multiplier']) + ')',
+        }, row['Rep Budget'], row),
+  };
+}
+
 async function renderChart(targetId = 'chart', noteId = 'chart-note', chartFilter = currentChartFilter) {
   const activeChartFilter = chartFilter;
   if (targetId === 'chart') setChartFilterButtonState(activeChartFilter);
@@ -12940,50 +12970,28 @@ async function renderChart(targetId = 'chart', noteId = 'chart-note', chartFilte
   const trackedF05Rows = csvRows.filter(isF05TrackingRow);
   const f05Rows = trackedF05Rows.filter(isCleanFinishedChartRow);
   const hasHalfFInCsv = trackedF05Rows.length > 0;
-  const embeddedChartUrls = new Set(chartData.map(point => point.url));
   const f05ChartPoints = f05Rows
-    .filter(row => row['W&B Link'] && !embeddedChartUrls.has(row['W&B Link']))
-    .map(row => {
-      const uniqueTokens = parseFloat(row['Unique Tokens']);
-      const evalLoss = parseFloat(row['Eval Loss']);
-      const tokensSeen = parseFloat(row['Tokens Seen']);
-      return {
-        name: row.Name,
-        state: row.State,
-        model: row.Model,
-        ot: parseFloat(row['OT Multiplier']),
-        num_repeats: parseFloat(row['Num Repeats']),
-        unique_tokens: uniqueTokens,
-        eval_loss: evalLoss,
-        direction: row.Direction,
-        tokens_seen_hr: Number.isFinite(tokensSeen) ? humanTokens(tokensSeen) : '-',
-        url: row['W&B Link'],
-        rep_budget: row['Rep Budget'],
-        chart_overlay: isF05ChartOverlay(row),
-      };
-    })
+    .map(f05RowToChartPoint)
     .filter(point => Number.isFinite(point.unique_tokens) && Number.isFinite(point.eval_loss));
+  const f05ChartUrls = new Set(f05ChartPoints.map(point => point.url).filter(Boolean));
   const allChartPoints = chartData.map(point => {
     const meta = rowsByUrl[point.url] || {};
     const hasMeta = Object.keys(meta).length > 0;
     const repBudget = meta['Rep Budget'] || point.rep_budget || '10%';
     const chartRepBudget = isF05ChartOverlay(meta) ? '5%' : repBudget;
+    const isHalfPoint = isHalfF(chartRepBudget);
     return {
       ...point,
       rep_budget: repBudget,
-      is_half_f: isHalfF(chartRepBudget),
+      is_half_f: isHalfPoint,
       is_clean_finished: hasMeta ? isCleanFinishedChartRow(meta) : point.state === 'finished',
+      is_untrusted_half_f: isHalfPoint && !hasMeta,
       is_retired_f05: isRetiredF05RunId(runIdFromUrl(point.url)),
       group: formatChartGroup(point, chartRepBudget, meta),
     };
-  }).concat(f05ChartPoints.map(point => ({
-    ...point,
-    is_half_f: true,
-    is_clean_finished: true,
-    group: point.chart_overlay
-      ? point.model + ' (OT=' + point.ot + ', f=0.1 seed overlay)'
-      : formatChartGroup(point, point.rep_budget),
-  }))).filter(point => Number.isFinite(point.unique_tokens) && Number.isFinite(point.eval_loss));
+  }).filter(point => (
+    !(point.is_half_f && (point.is_untrusted_half_f || f05ChartUrls.has(point.url)))
+  )).concat(f05ChartPoints).filter(point => Number.isFinite(point.unique_tokens) && Number.isFinite(point.eval_loss));
   const chartPoints = allChartPoints.filter(point => {
     if (point.is_retired_f05) return false;
     if (point.is_half_f && !point.is_clean_finished) return false;
@@ -13147,7 +13155,7 @@ async function renderChart(targetId = 'chart', noteId = 'chart-note', chartFilte
 
   Plotly.newPlot(targetId, traces, layout, config);
   const notePrefix = activeChartFilter === 'f05'
-    ? trackedF05Rows.length + ' f=0.05/seed-overlay rows tracked; ' + trackedF05RunningCount + ' running; ' + chartPoints.length + ' clean finished points charted. '
+    ? trackedF05Rows.length + ' f=0.05/seed-overlay rows tracked; ' + trackedF05RunningCount + ' running; ' + chartPoints.length + ' clean finished points charted from runs.csv. '
     : chartPoints.length + ' charted runs (' + finishedCount + ' finished, ' + runningCount + ' running). ';
   document.getElementById(noteId).innerHTML =
     notePrefix +
