@@ -343,7 +343,7 @@ def rebuild_html_row(row: dict[str, str]) -> str:
         td(html.escape(row.get("Num Repeats") or "")),
         td(html.escape(row.get("Direction") or "")),
         td(f"{html.escape(row.get('OT Multiplier') or '')}x" if row.get("OT Multiplier") else ""),
-        td(html.escape(row.get("Eval Loss") or "")),
+        td(html.escape(row.get("Eval Loss") or "-")),
         td(html.escape(row.get("Train Loss (last)") or "")),
         td(html.escape(row.get("Global Step") or "")),
         td(html.escape(fmt_float(row.get("Epoch"), 3))),
@@ -377,15 +377,29 @@ def update_stat(text: str, label: str, value: int) -> str:
 
 def update_top_stats(text: str, rows: list[dict[str, str]]) -> str:
     state_counts = Counter(str(row.get("State", "")) for row in rows)
-    sweep_count = len({row.get("Sweep ID", "") for row in rows if row.get("Sweep ID")})
     text = update_stat(text, "Running", state_counts.get("running", 0))
     text = update_stat(text, "Finished", state_counts.get("finished", 0))
-    text = update_stat(text, "Sweeps", sweep_count)
     text = update_stat(text, "Total Runs", len(rows))
     return text
 
 
-def update_index(index_html: Path, rows: list[dict[str, str]], records: dict[str, dict[str, Any]], queried_at: str) -> str:
+def replace_table_row(text: str, run_id: str, row_html: str) -> tuple[str, bool]:
+    pattern = re.compile(
+        r"<tr>\s*(?:(?!</tr>).)*?"
+        + re.escape(f"/runs/{run_id}")
+        + r"(?:(?!</tr>).)*?</tr>",
+        re.S,
+    )
+    text, count = pattern.subn(row_html, text, count=1)
+    return text, count == 1
+
+
+def update_index(
+    index_html: Path,
+    rows: list[dict[str, str]],
+    records: dict[str, dict[str, Any]],
+    queried_at: str,
+) -> str:
     text = index_html.read_text()
     query_time = dt.datetime.fromisoformat(queried_at).astimezone(dt.timezone.utc)
     build_time = max(query_time, current_build_time(text) + dt.timedelta(seconds=1))
@@ -400,16 +414,17 @@ def update_index(index_html: Path, rows: list[dict[str, str]], records: dict[str
     text = re.sub(r'DASHBOARD_BUILD_VERSION = "[0-9A-Z]+"', f'DASHBOARD_BUILD_VERSION = "{build}"', text, count=1)
     text = update_top_stats(text, rows)
 
-    table_rows = "".join(rebuild_html_row(row) for row in rows)
-    text, count = re.subn(
-        r"(<tbody>).*?(</tbody>)",
-        lambda match: f"{match.group(1)}{table_rows}{match.group(2)}",
-        text,
-        count=1,
-        flags=re.S,
-    )
-    if count != 1:
-        raise RuntimeError("Could not rebuild main table body")
+    row_by_run_id = {run_id_from_link(row.get("W&B Link")): row for row in rows}
+    missing_rows: list[str] = []
+    for run_id in records:
+        row = row_by_run_id.get(run_id)
+        if not row:
+            continue
+        text, replaced = replace_table_row(text, run_id, rebuild_html_row(row))
+        if not replaced:
+            missing_rows.append(run_id)
+    if missing_rows:
+        raise RuntimeError(f"Could not update table rows for run ids: {', '.join(missing_rows)}")
     index_html.write_text(text)
     return build
 
